@@ -1,0 +1,7 @@
+{
+  "name": "cxl",
+  "description": "Plugin to export subscription to external API.",
+  "require": {
+    "chartmogul/chartmogul-php": "~2.0"
+  }
+}

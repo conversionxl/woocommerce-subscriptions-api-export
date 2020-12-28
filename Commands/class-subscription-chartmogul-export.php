@@ -44,6 +44,8 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 
 		$this->set_command_args( $args, $assoc_args );
 
+		$this->intialize_chartmogul();
+
 		$this->export_orders();
 	}
 
@@ -71,6 +73,20 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 		if ( ! empty( $assoc_args['id'] ) && is_numeric( $assoc_args['id'] ) ) {
 			$this->id = $assoc_args['id'];
 		}
+	}
+
+	/**
+	 * Function to initialize ChartMogul.
+	 *
+	 * @return void
+	 */
+	private function intialize_chartmogul() {
+
+		require( CXL_PATH .  '/vendor/autoload.php' );
+
+		ChartMogul\Configuration::getDefaultConfiguration()
+			->setAccountToken( '' )
+			->setSecretKey( '' );
 	}
 
 	/**

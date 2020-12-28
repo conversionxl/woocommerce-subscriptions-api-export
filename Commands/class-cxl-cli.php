@@ -2,7 +2,7 @@
 /**
  * CLI commands for CXL
  */
-class CLX_CLI extends WP_CLI_Command {
+class CXL_CLI extends WP_CLI_Command {
 
 	/**
 	 * Export subscription order to chartmogul
