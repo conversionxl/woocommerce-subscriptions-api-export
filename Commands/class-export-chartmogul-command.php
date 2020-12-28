@@ -9,7 +9,7 @@ class Export_ChartMogul_Command extends \CLI_Command {
 	/**
 	 * Export subscription order to chartmogul
 	 *
-	 * [id]
+	 * [--id]
 	 * : Subscription Order ID
 	 *
 	 * [--all]
@@ -18,8 +18,8 @@ class Export_ChartMogul_Command extends \CLI_Command {
 	 * ## EXAMPLES
 	 *
 	 *     # Export order to ChartMogul.
-	 *     $ wp cxl shop-subscription-export-chartmogul 185
-	 *     Success: Deleted amazon order #185.
+	 *     $ wp cxl shop-subscription-export-chartmogul --id=25
+	 *     Order#25 sent to ChartMogul.
 	 *
 	 * @subcommand shop-subscription-export-chartmogul
 	 */
