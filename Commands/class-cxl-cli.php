@@ -13,6 +13,12 @@ class CXL_CLI extends WP_CLI_Command {
 	 * [--all]
 	 * : To run script for all orders.
 	 * 
+	 * [--data-source]
+	 * : Run for specific data source.
+	 * 
+	 * [--create-data-source]
+	 * : To create data source.
+	 * 
 	 * ## EXAMPLES
 	 *
 	 *     # Export order to ChartMogul.

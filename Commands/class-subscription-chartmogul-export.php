@@ -31,6 +31,19 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 	 */
 	private $fetch_all = false;
 	
+	/**
+	 * Variable to check if we need to create data source.
+	 *
+	 * @var bool
+	 */
+	private $create_data_source = false;
+	
+	/**
+	 * Variable for data source.
+	 *
+	 * @var bool
+	 */
+	private $data_source = false;
 
 	/**
 	 * Function to load other function on class initialize.
@@ -46,7 +59,12 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 
 		$this->intialize_chartmogul();
 
-		$this->export_orders();
+		if ( $this->create_data_source ) {
+			$this->create_chartmogul_data_source();
+		} else {
+			$this->export_orders();
+		}
+
 	}
 
 	/**
@@ -69,10 +87,58 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 			$this->fetch_all = true;
 		}
 
+		// Check all parameter.
+		if ( ! empty( $assoc_args['data-source'] ) ) {
+			$this->data_source = $assoc_args['data-source'];
+		}
+
+		// Check all parameter.
+		if ( ! empty( $assoc_args['create-data-source'] ) ) {
+			$this->create_data_source = true;
+
+			if ( empty( $this->data_source ) ) {
+				WP_CLI::error( 'Please pass data source name using --data-source' );
+			}
+		}
+
 		// Check id.
 		if ( ! empty( $assoc_args['id'] ) && is_numeric( $assoc_args['id'] ) ) {
 			$this->id = $assoc_args['id'];
 		}
+	}
+
+	/**
+	 * Function to create data source ChartMogul.
+	 *
+	 * @return void
+	 */
+	private function create_chartmogul_data_source() {
+		$ds = ChartMogul\DataSource::create([
+			'name' => $this->data_source
+		]);
+
+		// Error Log, needs to be removed.
+		WP_CLI::log( print_r( $ds, true ) );
+		WP_CLI::log( 'Data source created successfully.' );
+	}
+
+	/**
+	 * Function to create customer ChartMogul.
+	 *
+	 * @return void
+	 */
+	private function create_customer( $order ) {
+
+		ChartMogul\Customer::create([
+			"data_source_uuid" => $this->data_source,
+			"external_id" => $order->get_customer_id(),
+			"name" => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+			"email" => 	$order->get_billing_email(),
+			"country" => $order->get_billing_country(),
+			"city" => $order->get_billing_city(),
+		]);
+
+		WP_CLI::log( 'Customer Created Successfully.' );
 	}
 
 	/**
@@ -85,8 +151,8 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 		require( CXL_PATH .  '/vendor/autoload.php' );
 
 		ChartMogul\Configuration::getDefaultConfiguration()
-			->setAccountToken( '' )
-			->setSecretKey( '' );
+			->setAccountToken( '37803855593a9262c59b3b1fec5e88ae' )
+			->setSecretKey( '7bc86adc87d56a6371d11014ba0a9ad5' );
 	}
 
 	/**
@@ -149,7 +215,8 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 
 		$order = new WC_Order( $order_id );
 
-		// @todo export order code.
+		// Create Customer.
+		create_customer( $order );
 
 		$this->add_cli_log( $order_id );
 	}
