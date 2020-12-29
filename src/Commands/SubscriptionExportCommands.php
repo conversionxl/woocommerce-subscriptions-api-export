@@ -17,6 +17,12 @@ class SubscriptionExportCommands extends WP_CLI_Command {
      * [--all]
      * : To run script for all subscriptions.
      *
+     * [--data-source]
+     * : Run for specific data source.
+     *
+     * [--create-data-source]
+     * : To create data source.
+     *
      * ## EXAMPLES
      *
      *     # Export subscriptions to ChartMogul.
@@ -32,7 +38,7 @@ class SubscriptionExportCommands extends WP_CLI_Command {
 		if ( class_exists( SubscriptionExportChartMogulCommand::class ) ) {
 			new SubscriptionExportChartMogulCommand( $args, $assoc_args );
 		} else {
-			WP_CLI::warning( esc_html__( '`Subscription_Chartmogul_Export` class is not available.', 'cxl' ) );
+			WP_CLI::warning( esc_html__( SubscriptionExportChartMogulCommand::class . ' class is not available.', 'cxl' ) );
 		}
 	}
 
