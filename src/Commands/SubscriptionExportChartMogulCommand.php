@@ -169,24 +169,24 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 	/**
 	 * Function to create subscription in ChartMogul.
 	 */
-	private function create_subscription( int $plan_id, $order, $product ) {
+	private function create_subscription( int $plan_id, $order, $order_item ) {
+
+        $product = $order_item->get_product();
 
 		if ( 'subscription' !== $product->get_type() ) {
 			return false;
 		}
 
-		$subscription = new ChartMogul\LineItems\Subscription([
-			'subscription_external_id'     => $order->get_id(),
-			'subscription_set_external_id' => $order->get_id(),
-			'plan_uuid'                    => $plan_id,
-			'service_period_start'         => "2015-11-01 00:00:00",
-			'service_period_end'           => "2015-12-01 00:00:00",
-			'amount_in_cents'              => 5000,
-			'quantity'                     => 1,
-			'discount_code'                => "PSO86",
-			'discount_amount_in_cents'     => 1000,
-			'tax_amount_in_cents'          => 900,
-		]);
+        $subscription = new ChartMogul\LineItems\Subscription([
+            'subscription_external_id'     => $order->get_id(),
+            'subscription_set_external_id' => $order->get_id(),
+            'plan_uuid'                    => $plan_id,
+            'service_period_start'         => get_post_meta( $order->get_id(), '_schedule_start', true ),
+            'service_period_end'           => get_post_meta( $order->get_id(), '_schedule_end', true ),
+            'amount_in_cents'              => $order_item->get_total() * 100,
+            'quantity'                     => $order_item->get_quantity(),
+            'tax_amount_in_cents'          => $order_item->get_total_tax(),
+        ]);
 
 		return $subscription;
 	}
