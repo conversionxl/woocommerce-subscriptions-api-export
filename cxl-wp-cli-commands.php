@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       CXL WP_CLI Commands
  * Description:       WP CLI commands for export subscription order to external API.
- * Version:           1.0.0
+ * Version:           0.1.0
  * Tested up to:      5.5
  *
  * Text Domain: cxl
