@@ -2,7 +2,9 @@
 /**
  * CLI commands for CXL
  */
-class CLX_CLI extends WP_CLI_Command {
+namespace cxl;
+
+class CXL_CLI extends \WP_CLI_Command {
 
 	/**
 	 * Export subscription order to chartmogul

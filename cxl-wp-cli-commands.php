@@ -10,12 +10,9 @@
  * @package cxl
  */
 
-if ( ! class_exists( 'WP_CLI' ) ) {
+ if ( ! class_exists( 'WP_CLI' ) ) {
 	return;
 }
-
-// Load helper functions file.
-require_once __DIR__ . '/helpers.php';
 
 /**
  * Autoloader for cli commands class.
@@ -26,6 +23,7 @@ require_once __DIR__ . '/helpers.php';
  */
 function cxl_autoloader( $class ) {
 
+	$class     = str_replace( 'cxl\\', '', $class );
 	$file_name = __DIR__ . '/Commands/' . cxl_cli_class_to_file_name( $class );
 
 	if ( ! file_exists( $file_name ) ) {
@@ -54,4 +52,4 @@ function cxl_cli_class_to_file_name( $class ) {
 	return $new_class_name;
 }
 
-WP_CLI::add_command( 'cxl', 'CLX_CLI' );
+\WP_CLI::add_command( 'cxl', '\\cxl\\CXL_CLI' );
