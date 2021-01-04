@@ -10,7 +10,7 @@
  * @package cxl
  */
 
- if ( ! class_exists( 'WP_CLI' ) ) {
+if ( ! class_exists( 'WP_CLI' ) ) {
 	return;
 }
 
