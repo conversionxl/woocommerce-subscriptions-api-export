@@ -2,9 +2,9 @@
 /**
  * CLI commands for CXL
  */
-namespace cxl;
+namespace CXL_Upwork_01dd36a4283a21f14f;
 
-class CXL_CLI extends \WP_CLI_Command {
+class Export_ChartMogul_Command extends \CLI_Command {
 
 	/**
 	 * Export subscription order to chartmogul
@@ -14,7 +14,7 @@ class CXL_CLI extends \WP_CLI_Command {
 	 *
 	 * [--all]
 	 * : To run script for all orders.
-	 * 
+	 *
 	 * ## EXAMPLES
 	 *
 	 *     # Export order to ChartMogul.
@@ -23,7 +23,7 @@ class CXL_CLI extends \WP_CLI_Command {
 	 *
 	 * @subcommand shop-subscription-export-chartmogul
 	 */
-	public function shop_subscription_chartmogul_export( $args, $assoc_args ) {
+	public function shop_subscription_chartmogul_export( $args, $assoc_args ): void {
 
 		if ( class_exists( 'Subscription_Chartmogul_Export' ) ) {
 			new Subscription_Chartmogul_Export( $args, $assoc_args );
