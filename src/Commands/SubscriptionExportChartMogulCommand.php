@@ -53,6 +53,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
      */
 	public function __construct( array $args, array $assoc_args ) {
 
+        $this->create_subscription( 'sdf','sdf','sdf' );
 		$this->set_command_args( $args, $assoc_args );
 
 		$this->initialize_chartmogul();
@@ -138,6 +139,87 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 		] );
 
 		WP_CLI::log( 'Customer created in ChartMogul.' );
+	}
+
+	/**
+	 * Function to create plan in ChartMogul.
+	 *
+	 * @return bool
+     * @todo $product?
+	 */
+	private function create_plan( $product ) {
+
+		if ( 'subscription' !== $product->get_type() ) {
+			return false;
+		}
+
+		$plan = ChartMogul\Plan::create( [
+			'data_source_uuid' => $this->data_source,
+			'name'             => $product->get_name(),
+			'interval_count'   => get_post_meta( $product->get_id(), '_subscription_period_interval', true ),
+			'interval_unit'    => get_post_meta( $product->get_id(), '_subscription_period', true ),
+			'external_id'      => $product->get_id(),
+		] );
+
+		WP_CLI::log( 'Plan Created Successfully.' );
+
+		return $plan;
+	}
+
+	/**
+	 * Function to create subscription in ChartMogul.
+	 */
+	private function create_subscription( int $plan_id, $order, $order_item ) {
+
+        $product = $order_item->get_product();
+
+		if ( 'subscription' !== $product->get_type() ) {
+			return false;
+		}
+
+        $subscription = new ChartMogul\LineItems\Subscription([
+            'subscription_external_id'     => $order->get_id(),
+            'subscription_set_external_id' => $order->get_id(),
+            'plan_uuid'                    => $plan_id,
+            'service_period_start'         => get_post_meta( $order->get_id(), '_schedule_start', true ),
+            'service_period_end'           => get_post_meta( $order->get_id(), '_schedule_end', true ),
+            'amount_in_cents'              => $order_item->get_total() * 100,
+            'quantity'                     => $order_item->get_quantity(),
+            'tax_amount_in_cents'          => $order_item->get_total_tax(),
+        ]);
+
+		return $subscription;
+	}
+
+	/**
+	 * Function to create plan in ChartMogul.
+	 */
+	private function create_invoice( $order ) {
+
+		$customer = $this->create_customer();
+
+		// Iterating through each "line" items in the order
+		foreach ($order->get_items() as $item_id => $item ) {
+
+			$product = $item->get_product();
+
+			if ( 'subscription' !== $product->get_type() ) {
+				return false;
+			}
+
+		}
+
+		ChartMogul\Plan::create([
+			'data_source_uuid' => $this->data_source,
+			'name'             => $product->get_name(),
+			'interval_count'   => get_post_meta( $product->get_id(), '_subscription_period_interval', true ),
+			'interval_unit'    => get_post_meta( $product->get_id(), '_subscription_period', true ),
+			'external_id'      => $product->get_id(),
+		]);
+
+		WP_CLI::log( 'Plan Created Successfully.' );
+
+		return true;
 	}
 
 	/**
