@@ -1,0 +1,15 @@
+{
+    "name": "cxl/woocommerce-subscriptions-api-export",
+    "description": "Plugin to export subscription to external API.",
+    "require": {
+        "chartmogul/chartmogul-php": "~2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "CXL_Upwork_01dd36a4283a21f14f\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

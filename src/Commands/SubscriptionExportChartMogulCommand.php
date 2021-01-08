@@ -1,19 +1,20 @@
 <?php
 /**
- * CLI commands to export subscription order to ChartMogul.
+ * CLI commands to export subscriptions to ChartMogul.
  *
  * @package cxl
  */
 
-namespace CXL_Upwork_01dd36a4283a21f14f;
+namespace CXL_Upwork_01dd36a4283a21f14f\Commands;
 
+use ChartMogul;
 use WP_CLI;
 use WP_CLI_Command;
 
 /**
- * CLI commands to export subscription order to ChartMogul.
+ * CLI commands to export subscriptions to ChartMogul.
  */
-class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
+class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
 	/**
 	 * Variable to store dry-run flag.
@@ -21,12 +22,12 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 	private bool $dry_run = false;
 
 	/**
-	 * Variable for single order id.
+	 * Variable for single subscription id.
 	 */
 	private ?int $id;
 
 	/**
-	 * Variable to check if we need to proceed for all orders.
+	 * Variable to check if we need to proceed for all subscriptions.
 	 */
 	private bool $fetch_all = false;
 
@@ -41,7 +42,9 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 
 		$this->set_command_args( $args, $assoc_args );
 
-		$this->export_orders();
+		$this->intialize_chartmogul();
+
+		$this->export_subscriptions();
 	}
 
 	/**
@@ -71,18 +74,31 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Export orders to ChartMogul.
+	 * Function to initialize ChartMogul.
 	 *
 	 * @return void
 	 */
-	private function export_orders(): void {
+	private function intialize_chartmogul() {
+
+	    // @todo constant option name + `get_option()`.
+		ChartMogul\Configuration::getDefaultConfiguration()
+			->setAccountToken( '' )
+			->setSecretKey( '' );
+	}
+
+	/**
+	 * Export subscriptions to ChartMogul.
+	 *
+	 * @return void
+	 */
+	private function export_subscriptions(): void {
 
 	    // @todo parameter validity should be checked before any queries.
 		$post_ids = $this->get_subscription_posts();
 
 		if ( ! empty( $this->id ) ) {
 
-			$this->export_order_to_chartmogul( $this->id );
+			$this->export_subscription_to_chartmogul( $this->id );
 
 			WP_CLI::log( WP_CLI::colorize( '%yExport finished.%n' ) );
 
@@ -90,13 +106,13 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 
 			foreach ( $post_ids as $post_id ) {
 				// Update post meta.
-				$this->export_order_to_chartmogul( $post_id );
+				$this->export_subscription_to_chartmogul( $post_id );
 			}
 
 			WP_CLI::log( WP_CLI::colorize( '%yExport finished.%n' ) );
 
 		} else {
-			WP_CLI::log( WP_CLI::colorize( '%yPlease either pass the order id or --all parameter.%n' ) );
+			WP_CLI::log( WP_CLI::colorize( '%yPlease either pass the subsription id or --all parameter.%n' ) );
 		}
 	}
 
@@ -114,19 +130,19 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 	}
 
 	/**
-	 * Export single order to ChartMogul.
+	 * Export single subscription to ChartMogul.
 	 *
-	 * @param int $order_id Order ID.
+	 * @param int $subscription_id Subscription ID.
 	 *
 	 * @return void
 	 */
-	private function export_order_to_chartmogul( int $order_id ): void {
+	private function export_subscription_to_chartmogul( int $subscription_id ): void {
 
-		$order = wc_get_order( $order_id );
+		$subscription = wcs_get_subscription( $subscription_id );
 
-		// @todo export order code.
+		// @todo export subscription code.
 
-		$this->add_cli_log( $order_id );
+		$this->add_cli_log( $subscription_id );
 	}
 
 	/**
@@ -141,13 +157,13 @@ class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
 		if ( true === $this->dry_run ) {
 			// translator: %s: Meta key, %d post id.
 			$cli_msg = sprintf(
-				esc_html__( 'Order #%d would be sent to ChartMogul', 'cxl' ),
+				esc_html__( 'Subscription #%d would be sent to ChartMogul', 'cxl' ),
 				esc_html( $subscription_id )
 			);
 		} else {
 			// translator: %s: Meta key, %d post id.
 			$cli_msg = sprintf(
-				esc_html__( 'Order #%d sent to ChartMogul', 'cxl' ),
+				esc_html__( 'Subscription #%d sent to ChartMogul', 'cxl' ),
 				esc_html( $subscription_id )
 			);
 		}
