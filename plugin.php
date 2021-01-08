@@ -51,4 +51,4 @@ function cxl_cli_class_to_file_name( string $class ): string {
 
 }
 
-WP_CLI::add_command( 'cxl', Export_ChartMogul_Command::class );
+WP_CLI::add_command( 'cxl', Subscription_Export_Commands::class );

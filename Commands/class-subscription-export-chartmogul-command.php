@@ -1,46 +1,43 @@
 <?php
 /**
- * CLI commands to export subscription order to Chartmogul.
+ * CLI commands to export subscription order to ChartMogul.
  *
  * @package cxl
  */
 
-/**
- * CLI commands to export subscription order to Chartmogul.
- */
-class Subscription_Chartmogul_Export extends WP_CLI_Command {
+namespace CXL_Upwork_01dd36a4283a21f14f;
 
-	/**s
+use WP_CLI;
+use WP_CLI_Command;
+
+/**
+ * CLI commands to export subscription order to ChartMogul.
+ */
+class Subscription_Export_ChartMogul_Command extends WP_CLI_Command {
+
+	/**
 	 * Variable to store dry-run flag.
-	 *
-	 * @var bool
 	 */
-	private $dry_run = false;
+	private bool $dry_run = false;
 
 	/**
 	 * Variable for single order id.
-	 *
-	 * @var bool
 	 */
-	private $id = false;
+	private ?int $id;
 
 	/**
 	 * Variable to check if we need to proceed for all orders.
-	 *
-	 * @var bool
 	 */
-	private $fetch_all = false;
-	
+	private bool $fetch_all = false;
+
 
 	/**
 	 * Function to load other function on class initialize.
 	 *
 	 * @param array $args       List of arguments pass with CLI command.
 	 * @param array $assoc_args List of associative arguments pass with CLI command.
-	 *
-	 * @return bool
 	 */
-	public function __construct( $args, $assoc_args ) {
+	public function __construct( array $args, array $assoc_args ) {
 
 		$this->set_command_args( $args, $assoc_args );
 
@@ -55,7 +52,7 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 	 *
 	 * @return void
 	 */
-	private function set_command_args( $args, $assoc_args ) {
+	private function set_command_args( array $args, array $assoc_args ): void {
 
 		// Check script mode.
 		if ( ! empty( $assoc_args['dry-run'] ) ) {
@@ -78,60 +75,54 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 	 *
 	 * @return void
 	 */
-	private function export_orders() {
+	private function export_orders(): void {
 
-		WP_CLI::log( WP_CLI::colorize( '%yStarting script...%n' ) );
-
+	    // @todo parameter validity should be checked before any queries.
 		$post_ids = $this->get_subscription_posts();
 
 		if ( ! empty( $this->id ) ) {
-		
-			$this->export_order_to_chartmogul( $this->id );		
 
-			WP_CLI::log( WP_CLI::colorize( '%yScript got completed.%n' ) );
-		
+			$this->export_order_to_chartmogul( $this->id );
+
+			WP_CLI::log( WP_CLI::colorize( '%yExport finished.%n' ) );
+
 		} elseif ( ! empty( $this->fetch_all ) ) {
-			
+
 			foreach ( $post_ids as $post_id ) {
 				// Update post meta.
 				$this->export_order_to_chartmogul( $post_id );
-			}	
+			}
 
-			WP_CLI::log( WP_CLI::colorize( '%yScript got completed.%n' ) );
-		
+			WP_CLI::log( WP_CLI::colorize( '%yExport finished.%n' ) );
+
 		} else {
 			WP_CLI::log( WP_CLI::colorize( '%yPlease either pass the order id or --all parameter.%n' ) );
 		}
 	}
 
 	/**
-	 * Function to select subscrition posts.
+	 * Function to select subscriptions.
 	 *
 	 * @return array
 	 */
-	private function get_subscription_posts() {
+	private function get_subscription_posts(): array {
 
-		return get_posts(
-			[
-				'post_type'      => [ 'shop_subscription' ],
-				'posts_per_page' => -1,
-				'post_status'    => 'wc-completed',
-				'fields'         => 'ids',
-			]
-		);
+		return wcs_get_subscriptions( [
+            'subscriptions_per_page' => -1, // @todo batched processing, memory limit concerns.
+        ] );
 
 	}
 
 	/**
-	 * Export single order to chartmogul
+	 * Export single order to ChartMogul.
 	 *
 	 * @param int $order_id Order ID.
 	 *
 	 * @return void
 	 */
-	private function export_order_to_chartmogul( $order_id ) {
+	private function export_order_to_chartmogul( int $order_id ): void {
 
-		$order = new WC_Order( $order_id );
+		$order = wc_get_order( $order_id );
 
 		// @todo export order code.
 
@@ -141,23 +132,23 @@ class Subscription_Chartmogul_Export extends WP_CLI_Command {
 	/**
 	 * Function to add CLI log.
 	 *
-	 * @param int $post_id Post ID.
+	 * @param int $subscription_id Post ID.
 	 *
 	 * @return void
 	 */
-	private function add_cli_log( $post_id ) {
+	private function add_cli_log( int $subscription_id ): void {
 
 		if ( true === $this->dry_run ) {
 			// translator: %s: Meta key, %d post id.
 			$cli_msg = sprintf(
-				esc_html__( 'Order#%d will be sent to ChartMogul', 'cxl' ),
-				esc_html( $post_id )
+				esc_html__( 'Order #%d would be sent to ChartMogul', 'cxl' ),
+				esc_html( $subscription_id )
 			);
 		} else {
 			// translator: %s: Meta key, %d post id.
 			$cli_msg = sprintf(
-				esc_html__( 'Order#%d sent to ChartMogul', 'cxl' ),
-				esc_html( $post_id )
+				esc_html__( 'Order #%d sent to ChartMogul', 'cxl' ),
+				esc_html( $subscription_id )
 			);
 		}
 
