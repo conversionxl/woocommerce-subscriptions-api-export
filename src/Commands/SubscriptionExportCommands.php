@@ -33,13 +33,13 @@ class SubscriptionExportCommands extends WP_CLI_Command {
      * @param array $assoc_args
      * @subcommand shop-subscription-export-chartmogul
      */
-	public function shop_subscription_chartmogul_export( array $args, array $assoc_args ): void {
+    public function shop_subscription_chartmogul_export( array $args, array $assoc_args ): void {
 
-		if ( class_exists( SubscriptionExportChartMogulCommand::class ) ) {
-			new SubscriptionExportChartMogulCommand( $args, $assoc_args );
-		} else {
-			WP_CLI::warning( esc_html__( SubscriptionExportChartMogulCommand::class . ' class is not available.', 'cxl' ) );
-		}
-	}
+        if ( class_exists( SubscriptionExportChartMogulCommand::class ) ) {
+            new SubscriptionExportChartMogulCommand( $args, $assoc_args );
+        } else {
+            WP_CLI::warning( esc_html__( SubscriptionExportChartMogulCommand::class . ' class is not available.', 'cxl' ) );
+        }
+    }
 
 }

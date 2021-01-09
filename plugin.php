@@ -9,7 +9,7 @@ namespace CXL_Upwork_01dd36a4283a21f14f;
 use WP_CLI;
 
 if ( ! class_exists( 'WP_CLI' ) ) {
-	return;
+    return;
 }
 
 require_once __DIR__ . '/vendor/autoload.php';
