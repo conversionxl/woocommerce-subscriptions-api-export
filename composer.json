@@ -11,5 +11,23 @@
     },
     "config": {
         "optimize-autoloader": true
+    },
+    "repositories": {
+        "phpcs-ruleset": {
+            "type": "vcs",
+            "url": "https://github.com/conversionxl/phpcs-ruleset"
+        }
+    },
+    "require-dev": {
+        "cxl/phpcs-ruleset": "dev-master",
+        "vimeo/psalm": "^4.3"
+    },
+    "scripts": {
+        "lint": [
+            "@lint:phpcbf",
+            "@lint:phpcs"
+        ],
+        "lint:phpcbf": "phpcbf-fix-exit-0",
+        "lint:phpcs": "phpcs -s"
     }
 }
