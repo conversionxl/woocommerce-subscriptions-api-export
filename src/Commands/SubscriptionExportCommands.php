@@ -6,6 +6,11 @@ namespace CXL_Upwork_01dd36a4283a21f14f\Commands;
 
 use WP_CLI_Command;
 
+/**
+ * Main class.
+ *
+ * @psalm-suppress UndefinedClass
+ */
 class SubscriptionExportCommands extends WP_CLI_Command {
 
     /**

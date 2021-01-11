@@ -15,6 +15,8 @@ use WP_CLI_Command;
 
 /**
  * CLI commands to export subscriptions to ChartMogul.
+ *
+ * @psalm-suppress UndefinedClass
  */
 class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
