@@ -5,6 +5,7 @@
 namespace CXL_Upwork_01dd36a4283a21f14f\Commands;
 
 use WP_CLI_Command;
+use WP_CLI;
 
 /**
  * Main class.

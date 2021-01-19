@@ -121,13 +121,11 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'name' => $this->data_source,
         ]);
 
-        // Error Log, needs to be removed.
-        WP_CLI::log( print_r( $ds, true ) );
-        WP_CLI::log( 'Data source created successfully.' );
+        WP_CLI::success( 'Data source created successfully.' );
     }
 
     /**
-     * Function to create customer ChartMogul.
+     * Function to create customer in ChartMogul.
      *
      * @param WC_Subscription $subscription
      * @return mixed
@@ -139,8 +137,8 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'external_id'      => $subscription->get_customer_id(),
         ] );
 
+        // If customer is already available.
         if ( ! empty( $customer ) ) {
-            // WP_CLI::log( 'Customer Created Successfully.' );
             return $customer;
         }
 
@@ -153,16 +151,43 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'city'             => $subscription->get_billing_city(),
         ] );
 
-        WP_CLI::log( 'Customer created in ChartMogul.' );
+        WP_CLI::success( 'Customer created in ChartMogul.' );
+    }
+
+    /**
+     * Retrieve Plan UUID if plan is already pushed in ChartMogul.
+     *
+     * @param int $product_id WooCommerce Product ID
+     *
+     * @return bool|Object
+     */
+    private function retrive_plan( $product_id ) {
+
+        $plans = ChartMogul\Plan::all( [
+            'data_source_uuid' => $this->data_source,
+            'external_id'      => $product_id,
+        ] );
+
+        if ( ! empty( $plans ) ) {
+            return $plans[0];
+        }
+
+        return false;
     }
 
     /**
      * Function to create plan in ChartMogul.
      *
-     * @return bool
-     * @todo $product?
+     * @param /WC_Product $product Product Object
+     *
+     * @return Object
      */
     private function create_plan( $product ) {
+
+        $plan = $this->retrive_plan( $product->get_id() );
+        if ( ! empty( $plan ) ) {
+            return $plan;
+        }
 
         if ( 'subscription' !== $product->get_type() ) {
             return false;
@@ -171,7 +196,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
         $plan = ChartMogul\Plan::create( [
             'data_source_uuid' => $this->data_source,
             'name'             => $product->get_name(),
-            'interval_count'   => get_post_meta( $product->get_id(), '_subscription_period_interval', true ),
+            'interval_count'   => (int) get_post_meta( $product->get_id(), '_subscription_period_interval', true ),
             'interval_unit'    => get_post_meta( $product->get_id(), '_subscription_period', true ),
             'external_id'      => $product->get_id(),
         ] );
@@ -183,8 +208,15 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
     /**
      * Function to create subscription in ChartMogul.
+     *
+     * @param string          $plan_id      ChartMogul Plan id.
+     * @param WC_Order_item   $order_item   Order Item.
+     * @param WC_Order        $order        Current Order.
+     * @param WC_Subscription $subscription Subscription Order.
+     *
+     * @retun Object
      */
-    private function create_subscription( int $plan_id, $order_item, $order ) {
+    private function create_subscription( $plan_id, $order_item, $order, $subscription ) : object {
 
         $product = $order_item->get_product();
 
@@ -192,20 +224,20 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             return $this->create_onetime_lineitem( $order_item, $order );
         }
 
-        $subscription_parameter = new ChartMogul\LineItems\Subscription([
+        $subscription_parameter = [
             'subscription_external_id'     => $order->get_id(),
             'subscription_set_external_id' => $order->get_id(),
             'plan_uuid'                    => $plan_id,
-            'service_period_start'         => get_post_meta( $order->get_id(), '_schedule_start', true ),
-            'service_period_end'           => get_post_meta( $order->get_id(), '_schedule_end', true ),
-            'amount_in_cents'              => $order_item->get_total() * 100,
+            'service_period_start'         => get_post_meta( $subscription->get_id(), '_schedule_start', true ),
+            'service_period_end'           => get_post_meta( $subscription->get_id(), '_schedule_end', true ),
+            'amount_in_cents'              => (int) $order_item->get_total() * 100,
             'quantity'                     => $order_item->get_quantity(),
-            'tax_amount_in_cents'          => $order_item->get_total_tax(),
-        ]);
+            'type'                         => 'subscription',
+            'tax_amount_in_cents'          => (int) $order_item->get_total_tax() * 100,
+        ];
 
         $subscription = new ChartMogul\LineItems\Subscription( $subscription_parameter );
 
-        WP_CLI::log( 'subscription created successfully' . print_r( $subscription, true ) );
         return $subscription;
     }
 
@@ -221,7 +253,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
         }
 
         $parameter = [
-            'description'         => $order_item - get_name(),
+            'description'         => $order_item->get_name(),
             'amount_in_cents'     => $order_item->get_total() * 100,
             'quantity'            => $order_item->get_quantity(),
             'tax_amount_in_cents' => $order_item->get_total_tax(),
@@ -229,17 +261,19 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
         $line_item = new ChartMogul\LineItems\OneTime( $parameter );
 
-        WP_CLI::log( 'Line item created successfully' . print_r( $line_item, true ) );
-
         return $line_item;
     }
 
     /**
      * Function to create invoice in ChartMogul.
+     *
+     * @param Object    $customer ChartMogul Customer.
+     * @param WC_Order $order    WooCommerce Order.
+     * @param WC_Subscription $subscription WooCommerce Subscription.
+     *
+     * @retun bool
      */
-    private function create_invoice( $customer, $order ) {
-
-        // $customer = $this->create_customer();
+    private function create_invoice( $customer, $order, $subscription ) {
 
         $line_items = array();
         // Iterating through each "line" items in the order
@@ -251,7 +285,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
                 $line_items[] = $this->create_onetime_lineitem( $item, $order );
             } else {
                 $plan         = $this->create_plan( $product );
-                $line_items[] = $this->create_subscription( $plan->uuid, $item, $order );
+                $line_items[] = $this->create_subscription( $plan->uuid, $item, $order, $subscription );
             }
 
         }
@@ -261,33 +295,34 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
         if ( ! empty( $paid_date ) ) {
             $payment_status = 'successful';
         }
+
         $transaction = new ChartMogul\Transactions\Payment( [
             'date'   => $paid_date,
             'result' => $payment_status,
         ] );
 
         $invoice_parameter = [
-            'external_id'  => $order->get_id(),
-            'date'         => $order->get_date_created(),
-            'currency'     => $order->get_currency(),
-            'due_date'     => $order->get_date_created(),
-            'line_items'   => $line_items,
-            'transactions' => [ $transaction ],
+            'external_id'          => $order->get_id(),
+            'date'                 => $order->order_date,
+            'currency'             => $order->get_currency(),
+            'due_date'             => $order->order_date,
+            'customer_external_id' => $order->get_user_id(),
+            'line_items'           => $line_items,
+            'transactions'         => [ $transaction ],
         ];
+
+        $invoice = new ChartMogul\Invoice( $invoice_parameter );
+
+        WP_CLI::success( 'Invoice Created Successfully.' );
 
         $customer_invoice_parameter = [
             'customer_uuid' => $customer->uuid,
             'invoices'      => [ $invoice ],
         ];
 
-        $invoice = new ChartMogul\Invoice( $invoice_parameter );
-        $ci      = ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
+        $ci = ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
 
-        WP_CLI::log( 'Invoice Created Successfully.' . print_r( $invoice, true ) );
-
-        WP_CLI::log( 'CI Created Successfully.' . print_r( $ci, true ) );
         return true;
-
     }
 
     /**
@@ -361,14 +396,15 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     private function export_subscription_to_chartmogul( int $subscription_id ): void {
 
         $subscription = wcs_get_subscription( $subscription_id );
-
-        $customer = $this->create_customer( $subscription );
-
-        $orders = $subscription->get_related_orders();
+        $customer     = $this->create_customer( $subscription );
+        $orders       = $subscription->get_related_orders();
 
         foreach ( $orders as $order_id ) {
             $order = wc_get_order( $order_id );
-            $this->create_invoice( $customer, $order );
+
+            if ( ! $this->dry_run ) {
+                $this->create_invoice( $customer, $order, $subscription );
+            }
         }
 
         $this->add_cli_log( $subscription_id );
