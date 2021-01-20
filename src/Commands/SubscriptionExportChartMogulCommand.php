@@ -425,14 +425,14 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     private function add_cli_log( int $subscription_id ): void {
 
         if ( true === $this->dry_run ) {
-            /* translators: #%d: Subscription id */
             $cli_msg = sprintf(
+                /* translators: #%d: Subscription id */
                 esc_html__( 'Subscription #%d would be sent to ChartMogul', 'cxl' ),
                 esc_html( $subscription_id )
             );
         } else {
-            /* translators: #%d: Subscription id */
             $cli_msg = sprintf(
+                /* translators: #%d: Subscription id */
                 esc_html__( 'Subscription #%d sent to ChartMogul', 'cxl' ),
                 esc_html( $subscription_id )
             );
