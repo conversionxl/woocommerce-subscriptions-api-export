@@ -245,11 +245,10 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
      * Function to create one time line item in ChartMogul.
      *
      * @param WC_Order_item $order_item   Order Item.
-     * @param WC_Order      $order        Current Order.
      *
      * @retun Object
      */
-    private function create_onetime_lineitem( $order_item, $order ) {
+    private function create_onetime_lineitem( $order_item ) {
 
         $product = $order_item->get_product();
 
@@ -287,7 +286,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             $product = $item->get_product();
 
             if ( 'subscription' !== $product->get_type() ) {
-                $line_items[] = $this->create_onetime_lineitem( $item, $order );
+                $line_items[] = $this->create_onetime_lineitem( $item );
             } else {
                 $plan         = $this->create_plan( $product );
                 $line_items[] = $this->create_subscription( $plan->uuid, $item, $order, $subscription );
