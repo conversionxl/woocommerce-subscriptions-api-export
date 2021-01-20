@@ -21,27 +21,27 @@ use WP_CLI_Command;
 class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
     /**
-     * Variable to store dry-run flag.
+     * @var boolean Variable to store dry-run flag.
      */
     private bool $dry_run = false;
 
     /**
-     * Variable for single subscription id.
+     * @var integer Variable for single subscription id.
      */
     private ?int $id = null;
 
     /**
-     * Variable to check if we need to proceed for all subscriptions.
+     * @var boolean Variable to check if we need to proceed for all subscriptions.
      */
     private bool $fetch_all = false;
 
     /**
-     * Variable to check if we need to create data source.
+     * @var boolean Variable to check if we need to create data source.
      */
     private bool $create_data_source = false;
 
     /**
-     * Variable for data source.
+     * @var string Variable for data source.
      */
     private ?string $data_source = null;
 
@@ -117,7 +117,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
      * @return void
      */
     private function create_chartmogul_data_source(): void {
-        $ds = ChartMogul\DataSource::create([
+        ChartMogul\DataSource::create([
             'name' => $this->data_source,
         ]);
 
@@ -157,7 +157,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     /**
      * Retrieve Plan UUID if plan is already pushed in ChartMogul.
      *
-     * @param int $product_id WooCommerce Product ID
+     * @param int $product_id WooCommerce Product ID.
      *
      * @return bool|Object
      */
@@ -178,7 +178,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     /**
      * Function to create plan in ChartMogul.
      *
-     * @param /WC_Product $product Product Object
+     * @param /WC_Product $product Product Object.
      *
      * @return Object
      */
@@ -243,6 +243,11 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
     /**
      * Function to create one time line item in ChartMogul.
+     *
+     * @param WC_Order_item   $order_item   Order Item.
+     * @param WC_Order        $order        Current Order.
+     *
+     * @retun Object
      */
     private function create_onetime_lineitem( $order_item, $order ) {
 
@@ -267,8 +272,8 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     /**
      * Function to create invoice in ChartMogul.
      *
-     * @param Object    $customer ChartMogul Customer.
-     * @param WC_Order $order    WooCommerce Order.
+     * @param Object          $customer     ChartMogul Customer.
+     * @param WC_Order        $order        WooCommerce Order.
      * @param WC_Subscription $subscription WooCommerce Subscription.
      *
      * @retun bool
@@ -277,7 +282,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
 
         $line_items = array();
         // Iterating through each "line" items in the order
-        foreach ( $order->get_items() as $item_id => $item ) {
+        foreach ( $order->get_items() as $item ) {
 
             $product = $item->get_product();
 
@@ -320,7 +325,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'invoices'      => [ $invoice ],
         ];
 
-        $ci = ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
+        ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
 
         return true;
     }
