@@ -2,6 +2,7 @@
 /**
  * Subscription export CLI commands for CXL.
  */
+
 namespace CXL_Upwork_01dd36a4283a21f14f\Commands;
 
 use WP_CLI_Command;
@@ -53,7 +54,7 @@ class SubscriptionExportCommands extends WP_CLI_Command {
         if ( class_exists( SubscriptionExportChartMogulCommand::class ) ) {
             new SubscriptionExportChartMogulCommand( $args, $assoc_args );
         } else {
-            WP_CLI::warning( esc_html__( SubscriptionExportChartMogulCommand::class . ' class is not available.', 'cxl' ) );
+            WP_CLI::warning( esc_html__( '`SubscriptionExportChartMogulCommand` class is not available.', 'cxl' ) );
         }
     }
 

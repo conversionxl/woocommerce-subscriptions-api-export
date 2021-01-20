@@ -244,8 +244,8 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     /**
      * Function to create one time line item in ChartMogul.
      *
-     * @param WC_Order_item   $order_item   Order Item.
-     * @param WC_Order        $order        Current Order.
+     * @param WC_Order_item $order_item   Order Item.
+     * @param WC_Order      $order        Current Order.
      *
      * @retun Object
      */
@@ -281,7 +281,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     private function create_invoice( $customer, $order, $subscription ) {
 
         $line_items = array();
-        // Iterating through each "line" items in the order
+        // Iterating through each "line" items in the order.
         foreach ( $order->get_items() as $item ) {
 
             $product = $item->get_product();
@@ -425,13 +425,13 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
     private function add_cli_log( int $subscription_id ): void {
 
         if ( true === $this->dry_run ) {
-            // translator: %s: Meta key, %d post id.
+            /* translators: #%d: Subscription id */
             $cli_msg = sprintf(
                 esc_html__( 'Subscription #%d would be sent to ChartMogul', 'cxl' ),
                 esc_html( $subscription_id )
             );
         } else {
-            // translator: %s: Meta key, %d post id.
+            /* translators: #%d: Subscription id */
             $cli_msg = sprintf(
                 esc_html__( 'Subscription #%d sent to ChartMogul', 'cxl' ),
                 esc_html( $subscription_id )
