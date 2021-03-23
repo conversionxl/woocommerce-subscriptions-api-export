@@ -168,7 +168,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'name' => strtolower( $this->data_source ),
         ]);
 
-        // Add validation if Data source is created or failed.
+        // Add validation if Data source is created / failed.
         // WP_CLI::log( 'Data source created successfully.' ).
     }
 
@@ -184,17 +184,12 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             'external_id'      => $subscription->get_customer_id(),
         ] );
 
-        // print_r($customer);
-        // if ( $customer instanceof Customer ) {
+        
         if ( is_object( $customer ) ) {
             WP_CLI::log( 'Customer was already created' );
             return $customer;
         }
-        /*
-        else {
-            WP_CLI::log( 'Customer needs creating' );
-        }
-        */
+        
 
         $customer = ChartMogul\Customer::create( [
             'data_source_uuid' => $this->data_source_uuid,
@@ -408,7 +403,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
             if ( ! is_object( $subscription ) ) {
                 WP_CLI::error( 'Please pass valid subscription id.' );
             }
-
+			
             $this->export_subscription_to_chartmogul( $this->id );
 
             WP_CLI::log( WP_CLI::colorize( '%yExport finished.%n' ) );
