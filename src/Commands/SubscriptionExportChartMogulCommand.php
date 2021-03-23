@@ -99,7 +99,7 @@ class SubscriptionExportChartMogulCommand extends WP_CLI_Command {
      * Function to set UUID for provided Data Source name.
      *
      * @param string $data_source_name ChartMogul Data Source name.
-     * @return string UUID or null.
+     * @return string UUID or null value.
      */
     private function getDataSourceUUIDbyName( string $data_source_name ): string {
 
