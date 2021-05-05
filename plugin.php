@@ -1,17 +1,29 @@
 <?php
 /**
- * Plugin Name: CXL Upwork 01dd36a4283a21f14f: WooCommerce Subscriptions external API export.
+ * Plugin Name: WooCommerce Subscriptions external API export.
  * Version: 0.1.0
  */
 
-namespace CXL_Upwork_01dd36a4283a21f14f;
+use CXL\WC\ChartMogul\Plugin;
 
-use WP_CLI;
+defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'WP_CLI' ) ) {
-    return;
-}
+define( 'CXL_WC_CHARTMOGUL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'CXL_WC_CHARTMOGUL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'CXL_WC_CHARTMOGUL_PLUGIN_FILE', __FILE__ );
+define( 'CXL_WC_CHARTMOGUL_PLUGIN_BASE', plugin_basename( __FILE__ ) );
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-WP_CLI::add_command( 'cxl', Commands\SubscriptionExportCommands::class );
+/**
+ * Returns plugin instance.
+ *
+ * @since 2021.05.27
+ */
+function cxl_wc_chartmogul(): Plugin {
+
+	return Plugin::getInstance();
+
+}
+
+add_action( 'cxl_common_lib_loaded', 'cxl_wc_chartmogul', 0 );

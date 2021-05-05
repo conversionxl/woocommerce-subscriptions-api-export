@@ -4,6 +4,18 @@
     <file>src</file>
     <file>plugin.php</file>
 
-    <rule ref="CXL"/>
+    <exclude-pattern>src/Core/Application.php</exclude-pattern>
+    <exclude-pattern>src/Proxies/App.php</exclude-pattern>
+    <exclude-pattern>src/Proxies/Proxy.php</exclude-pattern>
+    <exclude-pattern>src/Tools/ServiceProvider.php</exclude-pattern>
+
+    <rule ref="CXL">
+        <exclude name="Generic.WhiteSpace.DisallowTabIndent"/>
+        <exclude name="WordPress.NamingConventions.ValidFunctionName"/>
+        <exclude name="WordPress.NamingConventions.ValidHookName"/>
+    </rule>
+
+    <rule ref="Generic.WhiteSpace.DisallowSpaceIndent"/>
+    <rule ref="PSR1.Methods.CamelCapsMethodName"/>
 
 </ruleset>
