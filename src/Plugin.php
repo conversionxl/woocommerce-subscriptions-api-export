@@ -34,9 +34,6 @@ final class Plugin {
 	 */
 	private function __construct() {
 
-		// Load translations.
-		add_action( 'plugins_loaded', [ $this, 'loadTextdomain' ], 1 );
-
 		// Run.
 		add_action( 'plugins_loaded', [ $this, 'init' ], 3 );
 	}
@@ -52,21 +49,6 @@ final class Plugin {
 		}
 
 		return self::$instance;
-	}
-
-	/**
-	 * Load the plugin textdomain.
-	 *
-	 * @since  2021.01.28
-	 * @access public
-	 */
-	public function loadTextdomain(): void {
-
-		load_plugin_textdomain(
-			'cxl-wc-chartmogul',
-			false,
-			trailingslashit( dirname( plugin_basename( \CXL_WC_CHARTMOGUL_PLUGIN_FILE ) ) ) . '/public/lang'
-		);
 	}
 
 	public function init(): void {
