@@ -29,7 +29,6 @@ class Provider extends ServiceProvider {
 	 */
 	public function register() {
 
-		$this->cxl_wc_chartmogul->instance( 'cxl/wc/chartmogul/path', \CXL_WC_CHARTMOGUL_PLUGIN_DIR );
 		$this->cxl_wc_chartmogul->instance( 'cxl_is_wp_cli', ( defined( 'WP_CLI' ) && \WP_CLI ) );
 
 		if ( $this->cxl_wc_chartmogul->resolve( 'cxl_is_wp_cli' ) ) {
