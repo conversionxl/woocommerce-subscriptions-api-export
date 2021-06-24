@@ -11,10 +11,7 @@ namespace CXL\WC\ChartMogul\WP;
 use WP_User;
 use function get_user_by;
 
-/**
- * @inheritDoc
- * @since  2021.06.16
- */
+/** @since  2021.06.16 */
 class Component {
 
 	/**

@@ -12,16 +12,11 @@ use DateTime;
 use WC_Order;
 use function wc_get_orders;
 
-/**
- * @inheritDoc
- * @since  2021.06.16
- */
+/** @since  2021.06.16 */
 class Orders {
 
 	/**
 	 * Retrieve orders based on provided timeline.
-	 *
-	 * @return array
 	 */
 	public static function getOrdersByDateCreated( string $date_time_modifier ): array {
 
@@ -38,9 +33,8 @@ class Orders {
 		return wc_get_orders( $args );
 	}
 
-	/** Check if provided order has refunded items.
-	 *
-	 * @param WC_Order $order WC_Order Object
+	/**
+	 * Check if provided order has refunded items.
 	 */
 	public static function hasRefunds( WC_Order $order ): bool {
 		return 0 !== count( $order->get_refunds() );

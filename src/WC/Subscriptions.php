@@ -12,10 +12,7 @@ use WC_Subscription;
 use function wcs_get_subscriptions_for_order;
 use function wcs_order_contains_subscription;
 
-/**
- * @inheritDoc
- * @since  2021.06.16
- */
+/** @since  2021.06.16 */
 class Subscriptions {
 
 	/**
@@ -57,8 +54,7 @@ class Subscriptions {
 	 * Checks if subscription started with trial.
 	 *
 	 * @since 2020.05.05
-	 * @param \WC_Subscription $subscription Subscription.
-	 * @param bool             $is_active    True: check if trial is still active, false: if just existed.
+	 * @param bool $is_active    True: check if trial is still active, false: if just existed.
 	 */
 	public static function hasTrial( WC_Subscription $subscription, bool $is_active = true ): bool {
 		$trial_end = $subscription->get_time( 'trial_end' );
@@ -79,8 +75,6 @@ class Subscriptions {
 
 	/**
 	 * A function for grabbing an array of all subscriptions.
-	 *
-	 * @return array
 	 */
 	public static function getAllSubscriptions(): array {
 

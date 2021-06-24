@@ -1,7 +1,16 @@
 <?php
+
 /**
- * Plugin Name: WooCommerce Subscriptions external API export.
- * Version: 0.1.0
+ * CXL ChartMogul Export Plugin.
+ *
+ * @package CXL
+ *
+ * Plugin Name: WooCommerce Subscriptions external API export
+ * Plugin URI: https://cxl.com/
+ * Description: ChartMogul integration to export WooCommerce Orders, Subscription & Customers etc.
+ * Author: Leho Kraav
+ * Author URI: https://cxl.com
+ * Version: 2021.06.24
  */
 
 use CXL\WC\ChartMogul\Plugin;

@@ -15,10 +15,7 @@ use CXL\WC\ChartMogul\Export\Component as ExportComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use WP_CLI_Command;
 
-/**
- * @inheritDoc
- * @since  2021.05.27
- */
+/** @since  2021.05.27 */
 class Component extends WP_CLI_Command {
 
 	/**

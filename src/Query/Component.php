@@ -15,10 +15,7 @@ use CXL\WC\ChartMogul\Export\Component as ExportComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use Hybrid\Contracts\Bootable;
 
-/**
- * @inheritDoc
- * @since  2021.06.15
- */
+/** @since  2021.06.15 */
 class Component implements Bootable {
 
 	/** @inheritDoc */
@@ -32,8 +29,6 @@ class Component implements Bootable {
 	 *
 	 * @since 2021.06.15
 	 * @see https://developer.wordpress.org/reference/functions/get_query_var/
-	 * @param array $args
-	 * @return array
 	 */
 	public function addQueryArgs( array $args ): array {
 
@@ -120,7 +115,6 @@ class Component implements Bootable {
 	 *
 	 * @since 2021.06.15
 	 * @see https://developer.wordpress.org/reference/functions/get_query_var/
-	 * @return void
 	 */
 	public function parseQueryArgs(): array {
 

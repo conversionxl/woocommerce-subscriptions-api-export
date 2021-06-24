@@ -17,10 +17,7 @@ use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use Doctrine\Common\Collections\Criteria;
 use WC_Subscription;
 
-/**
- * @inheritDoc
- * @since  2021.05.27
- */
+/** @since  2021.05.27 */
 class Component {
 
 	/**
@@ -47,10 +44,10 @@ class Component {
 	public static function initialize_chartmogul(): string {
 
 		$account_token = get_option( static::$option_account_token, '' );
-		$secret_key = get_option( static::$option_secret_key, '' );
+		$secret_key    = get_option( static::$option_secret_key, '' );
 
 		if ( ! $account_token || ! $secret_key ) {
-			Logger::log()->critical( 'Setup ChartMogul account token and secret key.');
+			Logger::log()->critical( 'Setup ChartMogul account token and secret key.' );
 			return '';
 		}
 
@@ -165,7 +162,7 @@ class Component {
 		])->first();
 
 		if ( $data_source ) {
-			Logger::log()->info( 'Get Data source => Name: ' . $data_source->name);
+			Logger::log()->info( 'Get Data source => Name: ' . $data_source->name );
 
 			return $data_source;
 		}

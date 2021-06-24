@@ -3,6 +3,7 @@
  * CLI commands to export subscriptions to ChartMogul.
  *
  * @package cxl
+ * @license   https://www.gnu.org/licenses/gpl-2.0.html GPL-2.0-or-later
  */
 
 namespace CXL\WC\ChartMogul\Export;
@@ -10,6 +11,7 @@ namespace CXL\WC\ChartMogul\Export;
 use Automattic\WooCommerce\Admin\Overrides\OrderRefund;
 use ChartMogul;
 use ChartMogul\Customer as CMCustomer;
+use ChartMogul\Plan as CMPlan;
 use CXL\WC\ChartMogul\ChartMogul\Component as CMComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use CXL\WC\ChartMogul\WC\Memberships as WCMemberships;
@@ -26,9 +28,8 @@ use CXL\WC\ChartMogul\WC\Orders as WCOrders;
 use CXL\WC\ChartMogul\WC\Subscriptions as WCSubscriptions;
 
 /**
- * CLI commands to export subscriptions to ChartMogul.
  *
- * @psalm-suppress UndefinedClass
+ * @since  2021.05.27
  */
 class Component {
 
@@ -88,7 +89,6 @@ class Component {
 	/**
 	 * Function to load other function on class initialize.
 	 *
-	 * @param  array $options
 	 * @throws Throwable
 	 */
 	public function __construct( array $options = [] ) {
@@ -213,7 +213,7 @@ class Component {
 	/**
 	 * Function to create customer in ChartMogul.
 	 */
-	private function createCustomer( WC_Order $order ): object {
+	private function createCustomer( WC_Order $order ): CMCustomer {
 
 		Logger::log()->info( 'Creating customer', [ 'order_id' => $order->get_id() ] );
 
@@ -288,15 +288,13 @@ class Component {
 	}
 
 	/**
-	 * Function to create plan in ChartMogul.
+	 * Create plan in ChartMogul.
 	 *
-	 * @param \WC_Product $product WooCommerce Product Object.
-	 * @param \WC_Order   $order WooCommerce Order Object.
 	 */
-	private function create_plan( WC_Product $product, WC_Order $order ): object {
+	private function create_plan( WC_Product $product, WC_Order $order ): CMPlan {
 
 		// Retrieve Plan UUID if plan is already pushed in ChartMogul.
-		$plan = ChartMogul\Plan::all( [
+		$plan = CMPlan::all( [
 			'data_source_uuid' => $this->data_source_uuid,
 			'external_id'      => $product->get_id(),
 		] )->first();
@@ -319,7 +317,7 @@ class Component {
 				$interval_unit  = 'year';
 			}
 
-			$plan = ChartMogul\Plan::create( [
+			$plan = CMPlan::create( [
 				'data_source_uuid' => $this->data_source_uuid,
 				'name'             => $product->get_name(),
 				'interval_count'   => $interval_count,
@@ -338,16 +336,13 @@ class Component {
 	/**
 	 * Function to create subscription in ChartMogul.
 	 *
-	 * @param string         $plan_id      ChartMogul Plan id.
-	 * @param \WC_Order_item $order_item Order Item.
-	 * @param \WC_Order      $order Current Order.
 	 * @retun Object
 	 */
 	private function create_subscription(
 		string $plan_id,
 		WC_Order_item $order_item,
 		WC_Order $order,
-		$refund_type
+		string $refund_type
 	): object {
 
 		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
@@ -389,11 +384,10 @@ class Component {
 	/**
 	 * Function to create one time line item in ChartMogul.
 	 *
-	 * @param string                                                             $plan_id    ChartMogul Plan id.
 	 * @param WC_Order_item|OrderRefund $order_item Order Item.
 	 * @retun Object
 	 */
-	private function create_onetime_lineitem( string $plan_id, $order_item, $refund_type ) {
+	private function create_onetime_lineitem( string $plan_id, $order_item, string $refund_type ): object {
 
 		Logger::log()->info(
 			'create_onetime_lineitem ',
@@ -412,10 +406,8 @@ class Component {
 		];
 
 		if ( $order_item instanceof OrderRefund ) {
-			$description  = '';
 			$who_refunded = WPComponent::getUser( $order_item->get_refunded_by() );
 
-			// wc_price('-' . $refund->get_amount(), array('currency' => $order->get_currency()))
 			if ( $who_refunded->exists() ) {
 				$description = sprintf(
 					/* translators: 1: refund id 2: refund date 3: username */
@@ -433,7 +425,7 @@ class Component {
 				$description = sprintf(
 					/* translators: 1: refund id 2: refund date */
 					esc_html__( 'Refund #%1$s - %2$s', 'woocommerce' ),
-					esc_html( $refund->get_id() ),
+					esc_html( $order_item->get_id() ),
 					esc_html( wc_format_datetime( $order_item->get_date_created(), get_option( 'date_format' ) . ', ' . get_option( 'time_format' ) ) )
 				);
 			}
@@ -455,17 +447,14 @@ class Component {
 	/**
 	 * Function to create invoice for payments in ChartMogul.
 	 *
-	 * @param Object    $customer     ChartMogul Customer.
-	 * @param \WC_Order $order WooCommerce Order.
-	 * @retun bool
 	 */
-	private function create_payment_invoice( object $customer, WC_Order $order, $refund_type ) {
+	private function create_payment_invoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
 
 		$line_items = $this->get_line_items( $order, $refund_type );
 
 		if ( 0 === count( $line_items ) ) {
 			Logger::log()->debug( 'no $line_items found, so bailing early.' );
-			return true;
+			return;
 		}
 
 		$paid_date = $order->get_date_paid()
@@ -510,18 +499,13 @@ class Component {
 		if ( 0 === $invoice_exists->total_pages ) {
 			ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
 		}
-
-		return true;
 	}
 
 	/**
-	 * Function to create invoice for refunds in ChartMogul.
+	 * Create invoice for refunds in ChartMogul.
 	 *
-	 * @param Object    $customer     ChartMogul Customer.
-	 * @param \WC_Order $order WooCommerce Order.
-	 * @retun bool
 	 */
-	private function create_refund_invoice( object $customer, WC_Order $order, $refund_type ): bool {
+	private function create_refund_invoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
 		$_order = $order;
 
 		if ( 'none' === $refund_type ) {
@@ -533,7 +517,7 @@ class Component {
 				]
 			);
 
-			return true;
+			return;
 		}
 
 		Logger::log()->info(
@@ -548,7 +532,7 @@ class Component {
 
 		if ( 0 === count( $line_items ) ) {
 			Logger::log()->debug( 'no $line_items found, so bailing early.' );
-			return true;
+			return;
 		}
 
 		$refunds = $order->get_refunds();
@@ -595,11 +579,12 @@ class Component {
 		if ( 0 === $invoice_exists->total_pages ) {
 			ChartMogul\CustomerInvoices::create( $customer_invoice_parameter );
 		}
-
-		return true;
 	}
 
-	private function get_line_items( WC_Order $order, $refund_type ) {
+	/**
+	 * Get line items for ChartMogul invoice.
+	 */
+	private function get_line_items( WC_Order $order, string $refund_type ): array {
 		$order_items = $order
 			? $order->get_items()
 			: [];
@@ -636,7 +621,10 @@ class Component {
 		return $line_items;
 	}
 
-	private function get_refund_line_items( WC_Order $order, $customer, $refund_type ) {
+	/**
+	 * Get line items for ChartMogul refund invoice.
+	 */
+	private function get_refund_line_items( WC_Order $order, CMCustomer $customer, string $refund_type ): array {
 		$order_refunds = $order
 			? $order->get_refunds()
 			: [];
@@ -667,13 +655,16 @@ class Component {
 		return $line_items;
 	}
 
-	private function retrieve_plan( $order, $customer ) {
+	/**
+	 * Get Plan data from ChartMogul.
+	 */
+	private function retrieve_plan( WC_Order $order, CMCustomer $customer ): object {
 
 		$customer_invoices = ChartMogul\CustomerInvoices::all([
 			'customer_uuid' => $customer->uuid,
 		])->toArray();
 
-		$invoice = array_filter( $customer_invoices['invoices'], static fn( $customer_invoice ) => $order->get_id() === absint( $customer_invoice['external_id'] ) );
+		$invoice = array_filter( $customer_invoices['invoices'], static fn( array $customer_invoice ) => $order->get_id() === absint( $customer_invoice['external_id'] ) );
 
 		$invoice = current( $invoice );
 		$invoice = current( $invoice['line_items'] );
@@ -684,9 +675,8 @@ class Component {
 	}
 
 	/**
-	 * Export single subscription to ChartMogul.
+	 * Export subscription to ChartMogul.
 	 *
-	 * @param \WC_Order $order Order.
 	 */
 	private function exportOrderToChartMogul( WC_Order $order ): void {
 
@@ -694,7 +684,7 @@ class Component {
 
 		Logger::log()->info( sprintf( 'Exporting order id: %d, for customer uuid: %s', $order->get_id(), $customer->uuid ) );
 
-		// make sure to check it before creating payment invoice.
+		// Make sure to check it before creating payment invoice.
 		$refund_type = $this->getOrderRefundType( $customer, $order );
 
 		$this->create_payment_invoice( $customer, $order, $refund_type );
@@ -706,7 +696,6 @@ class Component {
 	/**
 	 * Export subscription to ChartMogul.
 	 *
-	 * @param int $subscription_id Subscription ID.
 	 */
 	private function exportSubscriptionToChartMogul( int $subscription_id ): void {
 
@@ -753,10 +742,6 @@ class Component {
 	/**
 	 * Export subscription's related orders to ChartMogul.
 	 *
-	 * @param array $orders WooCommerce Orders id array.
-	 * @param CMCustomer $customer ChartMogul Customer.
-	 * @param int $subscription_id Subscription ID.
-	 * @return void
 	 */
 	private function exportSubscriptionRelatedOrdersToChartMogul( array $orders, CMCustomer $customer, int $subscription_id ): void {
 		foreach ( $orders as $order_id ) {
@@ -775,7 +760,6 @@ class Component {
 	/**
 	 * Function to add CLI log.
 	 *
-	 * @param int $id Post ID (Subscription or Order).
 	 */
 	private function add_cli_log( int $id, string $log_type = 'subscription' ): void {
 
@@ -826,12 +810,8 @@ class Component {
 	/**
 	 * Helper function to determine the refund type, based on which refund data will be sent to ChartMogul.
 	 *
-	 * @param object $customer
-	 * @param WC_Order $order
-	 *
-	 * @return string
 	 */
-	private function getOrderRefundType( object $customer, WC_Order $order ): string {
+	private function getOrderRefundType( CMCustomer $customer, WC_Order $order ): string {
 
 		Logger::log()->info( 'Retrieve order refund type.' );
 
@@ -844,7 +824,7 @@ class Component {
 			'customer_uuid' => $customer->uuid,
 		])->toArray();
 
-		$invoice = array_filter( $customer_invoices['invoices'], static fn( $customer_invoice ) => $order->get_id() === absint( $customer_invoice['external_id'] ) );
+		$invoice = array_filter( $customer_invoices['invoices'], static fn( array $customer_invoice ) => $order->get_id() === absint( $customer_invoice['external_id'] ) );
 
 		$refund_type = 'past';
 
