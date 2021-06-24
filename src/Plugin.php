@@ -17,21 +17,6 @@ defined( 'ABSPATH' ) || exit;
 final class Plugin {
 
 	/**
-	 * Plugin dir path.
-	 */
-	public string $plugin_dir_path;
-
-	/**
-	 * Plugin dir url.
-	 */
-	public string $plugin_dir_url;
-
-	/**
-	 * Directory slug
-	 */
-	public string $slug;
-
-	/**
 	 * Singleton pattern
 	 */
 	private static ?Plugin $instance = null;
@@ -48,16 +33,6 @@ final class Plugin {
 	 * @throws \Exception
 	 */
 	private function __construct() {
-
-		/**
-		 * Provision plugin context info.
-		 *
-		 * @see https://developer.wordpress.org/reference/functions/plugin_dir_path/
-		 * @see https://stackoverflow.com/questions/11094776/php-how-to-go-one-level-up-on-dirname-file
-		 */
-		$this->plugin_dir_path = trailingslashit( dirname( __DIR__, 1 ) );
-		$this->plugin_dir_url  = plugin_dir_url( __FILE__ );
-		$this->slug            = basename( $this->plugin_dir_path );
 
 		// Load translations.
 		add_action( 'plugins_loaded', [ $this, 'loadTextdomain' ], 1 );
