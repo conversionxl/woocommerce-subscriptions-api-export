@@ -16,9 +16,7 @@ use CXL\WC\ChartMogul\ChartMogul\Component as CMComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use CXL\WC\ChartMogul\WC\Memberships as WCMemberships;
 use CXL\WC\ChartMogul\WP\Component as WPComponent;
-use DateTime;
 use Throwable;
-use WC_Memberships_User_Membership;
 use WC_Order;
 use WC_Order_item;
 use WC_Product;
@@ -26,6 +24,7 @@ use WC_Subscriptions_Order;
 use WC_Subscriptions_Product;
 use CXL\WC\ChartMogul\WC\Orders as WCOrders;
 use CXL\WC\ChartMogul\WC\Subscriptions as WCSubscriptions;
+use WC_Subscription;
 
 /**
  *
@@ -131,26 +130,19 @@ class Component {
 			// did customer signup for trial?
 			$this->has_trial = WCSubscriptions::hasTrial( $subscription, false );
 
-			$this->exportSubscriptionToChartMogul( $this->subscription_id );
-
-			Logger::log()->info( '%yExport finished.%n' );
+			$this->exportSubscriptionToChartMogul( $subscription );
 
 		} elseif ( ! empty( $this->order_id ) ) {
 
 			$this->createOrder( $this->order_id );
-
-			Logger::log()->info( '%yExport finished.%n' );
 
 		} elseif ( true === $this->fetch_all_subscriptions ) {
 
 			$subscriptions = WCSubscriptions::getAllSubscriptions();
 
 			foreach ( $subscriptions as $subscription ) {
-				// Update post meta.
-				$this->exportSubscriptionToChartMogul( $subscription->get_ID() );
+				$this->exportSubscriptionToChartMogul( $subscription );
 			}
-
-			Logger::log()->info( '%yExport finished.%n' );
 
 		} elseif ( true === $this->fetch_all_orders ) {
 
@@ -158,11 +150,13 @@ class Component {
 				$this->createOrder( $order_id );
 			}
 
-			Logger::log()->info( '%yExport finished.%n' );
-
 		} else {
 			Logger::log()->info( '%yPlease either pass the subscription id or --all-subscriptions parameter.%n' );
+
+			return;
 		}
+
+		Logger::log()->info( '%yExport finished.%n' );
 	}
 
 	/**
@@ -194,7 +188,7 @@ class Component {
 			// did customer signup for trial?
 			$this->has_trial = WCSubscriptions::hasTrial( $subscription, false );
 
-			$this->exportSubscriptionToChartMogul( $subscription->get_id() );
+			$this->exportSubscriptionToChartMogul( $subscription );
 		} else {
 			Logger::log()->notice( 'Order does not contain subscription.', [ 'order_id' => $order_id ] );
 
@@ -334,18 +328,27 @@ class Component {
 	}
 
 	/**
-	 * Function to create subscription in ChartMogul.
+	 * Create subscription in ChartMogul.
 	 *
-	 * @retun Object
 	 */
 	private function create_subscription(
 		string $plan_id,
 		WC_Order_item $order_item,
 		WC_Order $order,
 		string $refund_type
-	): object {
+	): ?object {
+
+		Logger::log()->info( 'create_subscription called!' );
 
 		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
+
+		if ( ! $subscription ) {
+			Logger::log()->info( 'Bailing early, as subscription not found for this order.', [
+				'order_id' => $order->get_id()
+			] );
+
+			return null;
+		}
 
 		$service_period_start = $subscription->get_date( 'start' );
 		$service_period_end = $subscription->get_date( 'next_payment' )?: $subscription->get_date( 'end' );
@@ -607,7 +610,9 @@ class Component {
 			// $has_trial_signup = ( WC_Subscriptions_Order::get_sign_up_fee( $order ) === WC_Subscriptions_Product::get_sign_up_fee( $product ) );
 
 			if ( WC_Subscriptions_Product::is_subscription( $product ) && ! $has_trial_signup ) {
-				$line_items[] = $this->create_subscription( $plan->uuid, $item, $order, $refund_type );
+				if ( $subscription_line_item = $this->create_subscription( $plan->uuid, $item, $order, $refund_type ) ) {
+					$line_items[] = $subscription_line_item;
+				}
 
 				Logger::log()->info( 'create_plan & create_subscription is called.' );
 			} else {
@@ -633,6 +638,7 @@ class Component {
 		$plan = $this->retrieve_plan( $order, $customer );
 
 		Logger::log()->info( sprintf( 'get_refund_line_items from order ID: %s.', $order->get_id() ) );
+
 		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
 
 		// Iterating through each "line" items in the order.
@@ -641,9 +647,11 @@ class Component {
 			Logger::log()->info( sprintf( 'foreach $refund_items refund id: %s.', $item->get_id() ) );
 
 			if ( $subscription ) {
-				$line_items[] = $this->create_subscription( $plan->uuid, $item, $order, $refund_type );
+				if ( $subscription_line_item = $this->create_subscription( $plan->uuid, $item, $order, $refund_type ) ) {
+					$line_items[] = $subscription_line_item;
+				}
 
-				Logger::log()->info( 'create_plan & create_subscription is called.' );
+					Logger::log()->info( 'create_plan & create_subscription is called.' );
 			} else {
 				$line_items[] = $this->create_onetime_lineitem( $plan->uuid, $item, $refund_type );
 
@@ -697,9 +705,7 @@ class Component {
 	 * Export subscription to ChartMogul.
 	 *
 	 */
-	private function exportSubscriptionToChartMogul( int $subscription_id ): void {
-
-		$subscription = wcs_get_subscription( $subscription_id );
+	private function exportSubscriptionToChartMogul( WC_Subscription $subscription ): void {
 
 		$orders = $subscription->get_related_orders();
 		$order  = current( $orders );
@@ -714,21 +720,21 @@ class Component {
 
 		if ( 'cancelled' === $subscription->get_status() ) {
 
-			$chartmogul_subscription_data = CMComponent::getSubscription( $customer->uuid, $subscription );
+			$cm_subscription_data = CMComponent::getSubscription( $customer->uuid, $subscription );
 
 			// In case subscription was not already created on ChartMogul, create it first before cancelling.
-			if ( ! $chartmogul_subscription_data ) {
-				$this->exportSubscriptionRelatedOrdersToChartMogul( $orders, $customer, $subscription_id );
+			if ( ! $cm_subscription_data ) {
+				$this->exportSubscriptionRelatedOrdersToChartMogul( $orders, $customer, $subscription );
 
-				$chartmogul_subscription_data = CMComponent::getSubscription( $customer->uuid, $subscription );
+				$cm_subscription_data = CMComponent::getSubscription( $customer->uuid, $subscription );
 			}
 
-			if ( $chartmogul_subscription_data ) {
-				$chartmogul_subscription = new ChartMogul\Subscription([
-					'uuid' => $chartmogul_subscription_data->uuid,
+			if ( $cm_subscription_data ) {
+				$cm_subscription = new ChartMogul\Subscription([
+					'uuid' => $cm_subscription_data->uuid,
 				]);
 
-				$chartmogul_subscription->cancel( $subscription->get_date( 'cancelled' ) );
+				$cm_subscription->cancel( $subscription->get_date( 'cancelled' ) );
 
 				Logger::log()->info( 'Subscription cancelled.' );
 
@@ -736,16 +742,25 @@ class Component {
 			}
 		}
 
-		$this->exportSubscriptionRelatedOrdersToChartMogul( $orders, $customer, $subscription_id );
+		$this->exportSubscriptionRelatedOrdersToChartMogul( $orders, $customer, $subscription );
 	}
 
 	/**
 	 * Export subscription's related orders to ChartMogul.
 	 *
 	 */
-	private function exportSubscriptionRelatedOrdersToChartMogul( array $orders, CMCustomer $customer, int $subscription_id ): void {
+	private function exportSubscriptionRelatedOrdersToChartMogul( array $orders, CMCustomer $customer, WC_Subscription $subscription ): void {
+
+		Logger::log()->info( 'exportSubscriptionRelatedOrdersToChartMogul called.' );
+
 		foreach ( $orders as $order_id ) {
 			$order = wc_get_order( $order_id );
+
+			if ( ! $order ) {
+				Logger::log()->info( 'Order not found.', [ 'order_id' => $order_id ] );
+
+				continue;
+			}
 
 			// make sure to check it before creating payment invoice.
 			$refund_type = $this->getOrderRefundType( $customer, $order );
@@ -754,7 +769,7 @@ class Component {
 			$this->create_refund_invoice( $customer, $order, $refund_type );
 		}
 
-		$this->add_cli_log( $subscription_id );
+		$this->add_cli_log( $subscription->get_id() );
 	}
 
 	/**

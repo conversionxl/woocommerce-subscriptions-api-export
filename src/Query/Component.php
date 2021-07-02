@@ -98,9 +98,9 @@ class Component implements Bootable {
 		Logger::log()->debug( 'Export initiated by Query string' );
 
 		try {
-			$ping = CMComponent::initialize_chartmogul();
+			CMComponent::init();
 
-			if ( 'pong!' !== $ping ) {
+			if ( 'pong!' !== CMComponent::ping() ) {
 				Logger::log()->error( 'No ping to Chartmogul!' );
 			}
 

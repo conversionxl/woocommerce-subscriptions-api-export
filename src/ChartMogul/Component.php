@@ -23,7 +23,7 @@ class Component {
 	/**
 	 * Option: Account Token.
 	 *
-	 * $ wp option add cxl_cm_account_token 900asdfasdc019adkjasdf09808
+	 * $ wp option add cxl_cm_account_token 900asdfasdc019adkjasdf09808 --autoload=no
 	 *
 	 * @since 2021.06.22
 	 */
@@ -32,29 +32,34 @@ class Component {
 	/**
 	 * Option: Secret Key.
 	 *
-	 * $ wp option add cxl_cm_secret_key 900asdfasdc019adkjasdf09808
+	 * $ wp option add cxl_cm_secret_key 900asdfasdc019adkjasdf09808 --autoload=no
 	 *
 	 * @since 2021.06.22
 	 */
 	protected static string $option_secret_key = 'cxl_cm_secret_key';
 
 	/**
-	 * Function to initialize ChartMogul.
+	 * Initialize ChartMogul.
 	 */
-	public static function initialize_chartmogul(): string {
+	public static function init(): void {
 
 		$account_token = get_option( static::$option_account_token, '' );
 		$secret_key    = get_option( static::$option_secret_key, '' );
 
 		if ( ! $account_token || ! $secret_key ) {
 			Logger::log()->critical( 'Setup ChartMogul account token and secret key.' );
-			return '';
+			return;
 		}
 
-		// @todo constant option name + `get_option()`.
 		CMConfiguration::getDefaultConfiguration()
 			->setAccountToken( $account_token )
 			->setSecretKey( $secret_key );
+	}
+
+	/**
+	 * Ping ChartMogul.
+	 */
+	public static function ping(): string {
 
 		return CMPing::ping()->data;
 	}
@@ -114,13 +119,8 @@ class Component {
 		}
 
 		$cm_subscription = $chartmogul_subscriptions->matching( new Criteria( null, [ 'subscription_set_external_id' => $subscription->get_id() ] ) );
-		// $cm_subscription = $chartmogul_subscriptions->filter( static fn( $chartmogul_subscription ) => absint( $subscription->get_id() ) === absint( $chartmogul_subscription->subscription_set_external_id ) );
 
-		if ( ! $cm_subscription->isEmpty() ) {
-			return $cm_subscription->first();
-		}
-
-		return null;
+		return $cm_subscription->isEmpty() ? null : $cm_subscription->first();
 	}
 
 	/**

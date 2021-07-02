@@ -13,10 +13,9 @@ namespace CXL\WC\ChartMogul\CLI;
 use CXL\WC\ChartMogul\ChartMogul\Component as CMComponent;
 use CXL\WC\ChartMogul\Export\Component as ExportComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
-use WP_CLI_Command;
 
 /** @since  2021.05.27 */
-class Component extends WP_CLI_Command {
+class Component {
 
 	/**
 	 * Export subscriptions / orders to ChartMogul.
@@ -72,9 +71,9 @@ class Component extends WP_CLI_Command {
 	 */
 	public function shopExportToChartMogul( array $args, array $assoc_args ): void {
 		try {
-			$ping = CMComponent::initialize_chartmogul();
+			CMComponent::init();
 
-			if ( 'pong!' !== $ping ) {
+			if ( 'pong!' !== CMComponent::ping() ) {
 				Logger::log()->error( 'No ping to ChartMogul!' );
 			}
 
