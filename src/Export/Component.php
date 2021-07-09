@@ -15,58 +15,67 @@ use ChartMogul\Plan as CMPlan;
 use CXL\WC\ChartMogul\ChartMogul\Component as CMComponent;
 use CXL\WC\ChartMogul\Tools\Logger\Component as Logger;
 use CXL\WC\ChartMogul\WC\Memberships as WCMemberships;
+use CXL\WC\ChartMogul\WC\Orders as WCOrders;
+use CXL\WC\ChartMogul\WC\Subscriptions as WCSubscriptions;
 use CXL\WC\ChartMogul\WP\Component as WPComponent;
-use Throwable;
+use WC_Customer;
 use WC_Order;
 use WC_Order_item;
 use WC_Product;
+use WC_Subscription;
 use WC_Subscriptions_Order;
 use WC_Subscriptions_Product;
-use CXL\WC\ChartMogul\WC\Orders as WCOrders;
-use CXL\WC\ChartMogul\WC\Subscriptions as WCSubscriptions;
-use WC_Subscription;
 
-/**
- *
- * @since  2021.05.27
- */
+/** @since 2021.05.27 */
 class Component {
 
-	/** @var bool Variable to store dry-run flag. */
+	/**
+	 * Variable to store dry-run flag.
+	 */
 	private bool $dry_run = false;
 
 	/**
-	 * @var int|null Variable for single subscription id.
+	 * Variable for single subscription id.
 	 */
 	private ?int $subscription_id = null;
 
 	/**
-	 * @var int|null Variable for order id.
+	 * Variable for order id.
 	 */
 	private ?int $order_id = null;
 
 	/**
-	 * @var bool Variable to check if we need to proceed for all subscriptions.
+	 * Variable for customer id.
+	 */
+	private ?int $customer_id = null;
+
+	/**
+	 * Variable for product id.
+	 */
+	private ?int $product_id = null;
+
+	/**
+	 * Variable to check if we need to proceed for all subscriptions.
 	 */
 	private bool $fetch_all_subscriptions = false;
 
 	/**
-	 * @var bool Variable to check if we need to proceed for all orders.
+	 * Variable to check if we need to proceed for all orders.
 	 */
 	private bool $fetch_all_orders = false;
 
 	/**
-	 * @var string $modifier A date/time string. Valid formats are explained in <a href="https://secure.php.net/manual/en/datetime.formats.php">Date and Time Formats</a>.
+	 * A date/time string. Valid formats are explained in <a href="https://secure.php.net/manual/en/datetime.formats.php">Date and Time Formats</a>.
 	 */
 	private string $date_time_modifier = '-1 month';
 
 	/**
-	 * @var bool Variable to check if we need to create data source.
+	 * Variable to check if we need to create data source.
 	 */
 	private bool $create_data_source = false;
 
 	/**
-	 * @var string|null Variable for data source.
+	 * Variable for data source.
 	 */
 	private ?string $data_source = null;
 
@@ -76,23 +85,26 @@ class Component {
 	private ?string $data_source_uuid = null;
 
 	/**
-	 * Should customer be recorded as lead?
+	 * Should customer be recorded as lead?.
 	 */
-	private bool $is_lead = false;
+	private ?bool $is_lead = null;
 
 	/**
 	 * Did customer signup for trial?
+	 *
+	 * @phpcsSuppress SlevomatCodingStandard.Classes.UnusedPrivateElements.WriteOnlyProperty
 	 */
 	private bool $has_trial = false;
 
 	/**
 	 * Function to load other function on class initialize.
 	 *
-	 * @throws Throwable
+	 * @param array $options
+	 * @throws \Throwable
 	 */
 	public function __construct( array $options = [] ) {
 
-		// Setup class variables
+		// Setup class variables.
 		foreach ( array_keys( get_object_vars( $this ) ) as $key ) {
 			if ( isset( $options[ $key ] ) ) {
 				$this->$key = $options[ $key ];
@@ -102,18 +114,24 @@ class Component {
 		try {
 			if ( $this->create_data_source ) {
 				CMComponent::createDataSource( $this->data_source );
+			} elseif ( $this->product_id ) {
+				$product = wc_get_product( $this->product_id );
+				if ( ! $product ) {
+					Logger::log()->debug( 'Create Plan: No product found, bailing early.' );
+					return;
+				}
+
+				$this->createPlan( $product );
 			} else {
 				$this->exportToChartMogul();
 			}
-		} catch ( Throwable $e ) {
+		} catch ( \Throwable $e ) {
 			Logger::log()->error( 'Exception thrown', [ 'Message' => $e->getMessage() ] );
 		}
 
 	}
 
-	/**
-	 * Export data such as orders, subscription etc to ChartMogul.
-	 */
+	/** Export data such as orders, subscription etc to ChartMogul. */
 	private function exportToChartMogul(): void {
 
 		if ( ! empty( $this->subscription_id ) ) {
@@ -135,6 +153,10 @@ class Component {
 		} elseif ( ! empty( $this->order_id ) ) {
 
 			$this->createOrder( $this->order_id );
+
+		} elseif ( ! empty( $this->customer_id ) ) {
+
+			$this->createCustomer( $this->customer_id );
 
 		} elseif ( true === $this->fetch_all_subscriptions ) {
 
@@ -169,13 +191,16 @@ class Component {
 		if ( ! $order ) {
 			Logger::log()->critical( 'Please pass valid order id.', [ 'order_id' => $order_id ] );
 			return;
-		} elseif ( ! in_array( $order->get_status(), [ 'completed', 'failed', 'refunded' ], true ) ) {
+		}
+
+		if ( ! in_array( $order->get_status(), [ 'completed', 'failed', 'refunded' ], true ) ) {
 			Logger::log()->critical(
 				'Please pass order with allowed status.',
 				[
 					'current_status'   => $order->get_status(),
 					'allowed_statuses' => [ 'completed', 'failed', 'refunded' ],
-				] );
+				]
+			);
 			return;
 		}
 
@@ -205,87 +230,130 @@ class Component {
 	}
 
 	/**
-	 * Function to create customer in ChartMogul.
+	 * Create customer in ChartMogul.
+	 *
+	 * @throws \Exception
 	 */
-	private function createCustomer( WC_Order $order ): CMCustomer {
+	private function createCustomer( int $customer_id ): ?CMCustomer {
 
-		Logger::log()->info( 'Creating customer', [ 'order_id' => $order->get_id() ] );
+		Logger::log()->info( 'Creating customer', [ 'customer_id' => $customer_id ] );
+
+		$wc_customer = new WC_Customer( $customer_id );
 
 		$customer_data = [
 			'data_source_uuid' => $this->data_source_uuid,
-			'external_id'      => $order->get_customer_id(),
-			'name'             => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-			'email'            => $order->get_billing_email(),
-			'country'          => $order->get_billing_country(),
-			'city'             => $order->get_billing_city(),
+			'external_id'      => $wc_customer->get_id(),
+			'name'             => $wc_customer->get_display_name() ?: $wc_customer->get_first_name() . ' ' . $wc_customer->get_last_name(),
+			'email'            => $wc_customer->get_email(),
 		];
 
-		$user = WPComponent::getUser( $order->get_customer_id() );
-
-		if ( $user && $user->user_registered && $this->is_lead ) {
-			$customer_data['lead_created_at'] = mysql2date( __( 'Y-m-d H:i:s' ), $user->user_registered );
+		if ( $wc_customer->get_billing_country() ) {
+			$customer_data['country'] = $wc_customer->get_billing_country();
 		}
 
-		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
-
-		// Checks if subscription started with trial.
-		if ( $subscription && $this->has_trial && $subscription->get_date( 'start' ) ) {
-			$customer_data['free_trial_started_at'] = $subscription->get_date( 'start' );
+		if ( $wc_customer->get_billing_city() ) {
+			$customer_data['city'] = $wc_customer->get_billing_city();
 		}
 
-		$customer = CMComponent::findCustomerByExternalId( $this->data_source_uuid, $order->get_customer_id() );
+		// If customer is created via AutomateWoo, $is_lead will be null.
+		if ( is_null( $this->is_lead ) ) {
 
-		if ( $customer ) {
-			// update require customer_uuid
-			$customer = CMCustomer::update(
-				[
-					'customer_uuid' => $customer->uuid,
-				],
-				$customer_data
-			);
-			Logger::log()->info( 'Customer updated.' );
-		} else {
-			$customer = CMCustomer::create( $customer_data );
-			Logger::log()->info( 'Customer created.' );
-		}
+			$this->is_lead = false;
 
-		$memberships = WCMemberships::getMembershipsByCustomerID( $order->get_customer_id() );
-
-		if ( $memberships ) {
-			$memberships = WCMemberships::sortMembershipsByOrderDate( $memberships );
-
-			$membership = $memberships[0];
-
-			// @todo: maybe use updateCustomAttributes()
-			$customer->addCustomAttributes(
-				[
-					'type'  => 'Integer',
-					'key'   => 'id',
-					'value' => $membership->get_id(),
-				],
-				[
-					'type'  => 'String',
-					'key'   => 'membership',
-					'value' => $membership->get_plan()->get_name(),
-				]
-			);
-
-			foreach ( $memberships as $membership ) {
-				// Add tags to customer, such as memberships / plans etc.
-				$customer->addTags( $membership->get_plan()->get_name() );
+			// if customer is already paying customer, then he/she is not a lead.
+			if ( ! $wc_customer->get_is_paying_customer() ) {
+				$this->is_lead = true;
+			} elseif ( 0 === absint( $wc_customer->get_total_spent() ) ) {
+				// If customer total spent is $0, mark him / her as lead.
+				$this->is_lead = true;
+			} elseif ( 0 === absint( $wc_customer->get_order_count() ) ) {
+				// If hasn't purchased anything yet, mark him / her as lead.
+				$this->is_lead = true;
 			}
 		}
 
+		if ( $this->is_lead ) {
+			$customer_data['lead_created_at'] = mysql2date( __( 'Y-m-d H:i:s' ), $wc_customer->get_date_created() );
+		}
+
+		$subscription = WCSubscriptions::getTrialSubscriptionByCustomerID( $customer_id );
+
+		// Checks if subscription started with trial.
+		if ( $subscription && $subscription->get_date( 'start' ) ) {
+			$customer_data['free_trial_started_at'] = $subscription->get_date( 'start' );
+		}
+
+		$cm_customer = CMComponent::findCustomerByExternalId( $this->data_source_uuid, $customer_id );
+
+		Logger::log()->info( 'Customer data', [ 'customer_id' => $customer_data ] );
+
+		if ( $cm_customer ) {
+			// update require customer_uuid.
+			$cm_customer = CMCustomer::update(
+				[
+					'customer_uuid' => $cm_customer->uuid,
+				],
+				$customer_data
+			);
+
+			Logger::log()->info( 'Customer updated.' );
+		} else {
+			$cm_customer = CMCustomer::create( $customer_data );
+
+			Logger::log()->info( 'Customer created.' );
+		}
+
+		$this->createCustomerMemberships( $customer_id );
+
 		Logger::log()->info( 'Customer created / retrieved.' );
 
-		return $customer;
+		return $cm_customer;
 	}
 
 	/**
-	 * Create plan in ChartMogul.
+	 * Create customer memberships in ChartMogul.
 	 *
+	 * @throws \Exception
 	 */
-	private function create_plan( WC_Product $product, WC_Order $order ): CMPlan {
+	private function createCustomerMemberships( int $customer_id ): void {
+		$customer = CMComponent::findCustomerByExternalId( $this->data_source_uuid, $customer_id );
+
+		$memberships = WCMemberships::getMembershipsByCustomerID( $customer_id );
+
+		if ( ! $memberships ) {
+			return;
+		}
+
+		$memberships = WCMemberships::sortMembershipsByOrderDate( $memberships );
+
+		$membership = $memberships[0];
+
+		// @todo: maybe use updateCustomAttributes()
+		$customer->addCustomAttributes(
+			[
+				'type'  => 'Integer',
+				'key'   => 'id',
+				'value' => $membership->get_id(),
+			],
+			[
+				'type'  => 'String',
+				'key'   => 'membership',
+				'value' => $membership->get_plan()->get_name(),
+			]
+		);
+
+		foreach ( $memberships as $membership ) {
+			// Add tags to customer, such as memberships / plans etc.
+			$customer->addTags( $membership->get_plan()->get_name() );
+		}
+	}
+
+	/**
+	 * Create a plan in ChartMogul.
+	 */
+	private function createPlan( WC_Product $product ): ?CMPlan {
+
+		Logger::log()->debug( 'Create Plan', [ 'product_id' => $product->get_id() ] );
 
 		// Retrieve Plan UUID if plan is already pushed in ChartMogul.
 		$plan = CMPlan::all( [
@@ -294,19 +362,24 @@ class Component {
 		] )->first();
 
 		if ( ! $plan ) {
-			// Sane defaults
+
+			// Sane defaults.
 			$interval_count = 10;
 			$interval_unit  = 'year';
-			if ( WCSubscriptions::getSubscriptionForOrder( $order->get_id() ) ) {
-				// Subscriptions Plan
+
+			if ( WC_Subscriptions_Product::is_subscription( $product->get_id() ) ) {
+
+				// Subscriptions Plan.
 				$interval_count = (int) get_post_meta( $product->get_id(), '_subscription_period_interval', true );
 				$interval_unit  = get_post_meta( $product->get_id(), '_subscription_period', true );
 			} elseif ( has_term( [ 'subscriptions' ], 'product_cat', $product->get_id() ) ) {
-				// Foundations Plan
+
+				// Foundations Plan.
 				$interval_count = 10;
 				$interval_unit  = 'year';
 			} elseif ( has_term( [ 'minidegrees' ], 'product_cat', $product->get_id() ) ) {
-				// Mini-degrees plan
+
+				// Mini-degrees plan.
 				$interval_count = 1;
 				$interval_unit  = 'year';
 			}
@@ -329,45 +402,44 @@ class Component {
 
 	/**
 	 * Create subscription in ChartMogul.
-	 *
 	 */
-	private function create_subscription(
-		string $plan_id,
+	private function createSubscription(
+		string $plan_uuid,
 		WC_Order_item $order_item,
 		WC_Order $order,
 		string $refund_type
 	): ?object {
 
-		Logger::log()->info( 'create_subscription called!' );
+		Logger::log()->info( 'createSubscription called!' );
 
 		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
 
 		if ( ! $subscription ) {
 			Logger::log()->info( 'Bailing early, as subscription not found for this order.', [
-				'order_id' => $order->get_id()
+				'order_id' => $order->get_id(),
 			] );
 
 			return null;
 		}
 
 		$service_period_start = $subscription->get_date( 'start' );
-		$service_period_end = $subscription->get_date( 'next_payment' )?: $subscription->get_date( 'end' );
+		$service_period_end   = $subscription->get_date( 'next_payment' ) ?: $subscription->get_date( 'end' );
 
 		$subscription_data = [
 			'subscription_external_id'     => $subscription->get_id(),
 			'subscription_set_external_id' => $subscription->get_id(),
 			'service_period_start'         => $service_period_start,
 			'service_period_end'           => $service_period_end,
-			'plan_uuid'                    => $plan_id,
+			'plan_uuid'                    => $plan_uuid,
 			'type'                         => 'subscription',
 		];
 
 		if ( 'none' === $refund_type ) {
-			$amounts = $this->get_payment_amount( $order_item->get_total_tax(), $order_item->get_total() );
+			$amounts = $this->getPaymentAmount( $order_item->get_total_tax(), $order_item->get_total() );
 
 			$subscription_data['quantity'] = $order_item->get_quantity();
 		} else {
-			$amounts = $this->get_refund_amount( $order_item->get_total_tax(), $order_item->get_total() );
+			$amounts = $this->getRefundAmount( $order_item->get_total_tax(), $order_item->get_total() );
 
 			if ( 'past' === $refund_type ) {
 				$subscription_data['prorated'] = true;
@@ -385,25 +457,26 @@ class Component {
 	}
 
 	/**
-	 * Function to create one time line item in ChartMogul.
+	 * Create one time line item in ChartMogul.
 	 *
-	 * @param WC_Order_item|OrderRefund $order_item Order Item.
+	 * @param string                                                             $plan_uuid ChartMogul Plan UUID.
+	 * @param \WC_Order_item|\Automattic\WooCommerce\Admin\Overrides\OrderRefund $order_item Order Item.
 	 * @retun Object
 	 */
-	private function create_onetime_lineitem( string $plan_id, $order_item, string $refund_type ): object {
+	private function createOneTimeLineItem( string $plan_uuid, $order_item, string $refund_type ): object {
 
 		Logger::log()->info(
-			'create_onetime_lineitem ',
+			'createOneTimeLineItem',
 			[
 				'order_item_or_refund_item_id' => $order_item->get_id(),
 				'refund_type'                  => $refund_type,
 			]
 		);
 
-		$amounts = $this->get_payment_amount( $order_item->get_total_tax(), $order_item->get_total() );
+		$amounts = $this->getPaymentAmount( $order_item->get_total_tax(), $order_item->get_total() );
 
 		$one_time_data = [
-			'plan_uuid'           => $plan_id,
+			'plan_uuid'           => $plan_uuid,
 			'amount_in_cents'     => $amounts['amount_in_cents'],
 			'tax_amount_in_cents' => $amounts['tax_amount_in_cents'],
 		];
@@ -413,7 +486,7 @@ class Component {
 
 			if ( $who_refunded->exists() ) {
 				$description = sprintf(
-					/* translators: 1: refund id 2: refund date 3: username */
+				/* translators: 1: refund id 2: refund date 3: username */
 					esc_html__( 'Refund #%1$s - %2$s by %3$s', 'woocommerce' ),
 					esc_html( $order_item->get_id() ),
 					esc_html( wc_format_datetime( $order_item->get_date_created(), get_option( 'date_format' ) . ', ' . get_option( 'time_format' ) ) ),
@@ -426,7 +499,7 @@ class Component {
 				);
 			} else {
 				$description = sprintf(
-					/* translators: 1: refund id 2: refund date */
+				/* translators: 1: refund id 2: refund date */
 					esc_html__( 'Refund #%1$s - %2$s', 'woocommerce' ),
 					esc_html( $order_item->get_id() ),
 					esc_html( wc_format_datetime( $order_item->get_date_created(), get_option( 'date_format' ) . ', ' . get_option( 'time_format' ) ) )
@@ -448,12 +521,11 @@ class Component {
 	}
 
 	/**
-	 * Function to create invoice for payments in ChartMogul.
-	 *
+	 * Create invoice for payments in ChartMogul.
 	 */
-	private function create_payment_invoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
+	private function createPaymentInvoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
 
-		$line_items = $this->get_line_items( $order, $refund_type );
+		$line_items = $this->getLineItems( $order, $refund_type );
 
 		if ( 0 === count( $line_items ) ) {
 			Logger::log()->debug( 'no $line_items found, so bailing early.' );
@@ -461,10 +533,10 @@ class Component {
 		}
 
 		$paid_date = $order->get_date_paid()
-			?: $order->get_date_created(); // $order->get_date_completed()
+			?: $order->get_date_created();
 
 		$payment_status = 'failed';
-		if ( in_array( $order->get_status(), [ 'completed', 'refunded' ] ) ) {
+		if ( in_array( $order->get_status(), [ 'completed', 'refunded' ], true ) ) {
 			$payment_status = 'successful';
 		}
 
@@ -506,9 +578,8 @@ class Component {
 
 	/**
 	 * Create invoice for refunds in ChartMogul.
-	 *
 	 */
-	private function create_refund_invoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
+	private function createRefundInvoice( CMCustomer $customer, WC_Order $order, string $refund_type ): void {
 		$_order = $order;
 
 		if ( 'none' === $refund_type ) {
@@ -531,7 +602,7 @@ class Component {
 			]
 		);
 
-		$line_items = $this->get_refund_line_items( $_order, $customer, $refund_type );
+		$line_items = $this->getRefundLineItems( $_order, $customer, $refund_type );
 
 		if ( 0 === count( $line_items ) ) {
 			Logger::log()->debug( 'no $line_items found, so bailing early.' );
@@ -542,10 +613,10 @@ class Component {
 		$order   = current( $refunds );
 
 		$paid_date = $order->get_date_created()
-			?: $order->get_date_paid(); // $order->get_date_completed()
+			?: $order->get_date_paid();
 
 		$payment_status = 'failed';
-		if ( in_array( $order->get_status(), [ 'completed', 'refunded' ] ) ) {
+		if ( in_array( $order->get_status(), [ 'completed', 'refunded' ], true ) ) {
 			$payment_status = 'successful';
 		}
 
@@ -586,14 +657,16 @@ class Component {
 
 	/**
 	 * Get line items for ChartMogul invoice.
+	 *
+	 * @return array<string,mixed>
 	 */
-	private function get_line_items( WC_Order $order, string $refund_type ): array {
+	private function getLineItems( WC_Order $order, string $refund_type ): array {
 		$order_items = $order
 			? $order->get_items()
 			: [];
 		$line_items  = [];
 
-		Logger::log()->info( sprintf( 'get_line_items from order ID: %s.', $order->get_id() ) );
+		Logger::log()->info( sprintf( 'getLineItems from order ID: %s.', $order->get_id() ) );
 
 		// Iterating through each "line" items in the order.
 		foreach ( $order_items as $item ) {
@@ -602,23 +675,23 @@ class Component {
 
 			Logger::log()->info( sprintf( 'foreach $order_items product id: %s / product type: %s .', $product->get_id(), $product->get_type() ) );
 
-			$plan = $this->create_plan( $product, $order );
+			$plan = $this->createPlan( $product );
 
 			Logger::log()->info( sprintf( 'item product id: %s / item signup fee: %s / product signup fee: %s.', $item->get_product_id(), WC_Subscriptions_Order::get_sign_up_fee( $order ), WC_Subscriptions_Product::get_sign_up_fee( $product ) ) );
 
 			$has_trial_signup = ( WC_Subscriptions_Order::get_sign_up_fee( $order ) > 0 );
-			// $has_trial_signup = ( WC_Subscriptions_Order::get_sign_up_fee( $order ) === WC_Subscriptions_Product::get_sign_up_fee( $product ) );
 
 			if ( WC_Subscriptions_Product::is_subscription( $product ) && ! $has_trial_signup ) {
-				if ( $subscription_line_item = $this->create_subscription( $plan->uuid, $item, $order, $refund_type ) ) {
+				$subscription_line_item = $this->createSubscription( $plan->uuid, $item, $order, $refund_type );
+				if ( $subscription_line_item ) {
 					$line_items[] = $subscription_line_item;
 				}
 
-				Logger::log()->info( 'create_plan & create_subscription is called.' );
+				Logger::log()->info( 'createPlan & createSubscription is called.' );
 			} else {
-				$line_items[] = $this->create_onetime_lineitem( $plan->uuid, $item, $refund_type );
+				$line_items[] = $this->createOneTimeLineItem( $plan->uuid, $item, $refund_type );
 
-				Logger::log()->info( 'create_onetime_lineitem is called.' );
+				Logger::log()->info( 'createOneTimeLineItem is called.' );
 			}
 
 		}
@@ -629,15 +702,15 @@ class Component {
 	/**
 	 * Get line items for ChartMogul refund invoice.
 	 */
-	private function get_refund_line_items( WC_Order $order, CMCustomer $customer, string $refund_type ): array {
+	private function getRefundLineItems( WC_Order $order, CMCustomer $customer, string $refund_type ): array {
 		$order_refunds = $order
 			? $order->get_refunds()
 			: [];
 		$line_items    = [];
 
-		$plan = $this->retrieve_plan( $order, $customer );
+		$plan = $this->retrievePlan( $order, $customer );
 
-		Logger::log()->info( sprintf( 'get_refund_line_items from order ID: %s.', $order->get_id() ) );
+		Logger::log()->info( sprintf( 'getRefundLineItems from order ID: %s.', $order->get_id() ) );
 
 		$subscription = WCSubscriptions::getSubscriptionForOrder( $order->get_id() );
 
@@ -647,15 +720,17 @@ class Component {
 			Logger::log()->info( sprintf( 'foreach $refund_items refund id: %s.', $item->get_id() ) );
 
 			if ( $subscription ) {
-				if ( $subscription_line_item = $this->create_subscription( $plan->uuid, $item, $order, $refund_type ) ) {
+				$subscription_line_item = $this->createSubscription( $plan->uuid, $item, $order, $refund_type );
+				if ( $subscription_line_item ) {
 					$line_items[] = $subscription_line_item;
 				}
 
-					Logger::log()->info( 'create_plan & create_subscription is called.' );
-			} else {
-				$line_items[] = $this->create_onetime_lineitem( $plan->uuid, $item, $refund_type );
+				Logger::log()->info( 'createPlan & createSubscription is called.' );
 
-				Logger::log()->info( 'create_onetime_lineitem is called.' );
+			} else {
+				$line_items[] = $this->createOneTimeLineItem( $plan->uuid, $item, $refund_type );
+
+				Logger::log()->info( 'createOneTimeLineItem is called.' );
 			}
 
 		}
@@ -666,7 +741,7 @@ class Component {
 	/**
 	 * Get Plan data from ChartMogul.
 	 */
-	private function retrieve_plan( WC_Order $order, CMCustomer $customer ): object {
+	private function retrievePlan( WC_Order $order, CMCustomer $customer ): object {
 
 		$customer_invoices = ChartMogul\CustomerInvoices::all([
 			'customer_uuid' => $customer->uuid,
@@ -683,29 +758,29 @@ class Component {
 	}
 
 	/**
-	 * Export subscription to ChartMogul.
-	 *
+	 * Export order to ChartMogul.
 	 */
 	private function exportOrderToChartMogul( WC_Order $order ): void {
 
-		$customer = $this->createCustomer( $order );
+		$customer = $this->createCustomer( $order->get_customer_id() );
 
 		Logger::log()->info( sprintf( 'Exporting order id: %d, for customer uuid: %s', $order->get_id(), $customer->uuid ) );
 
 		// Make sure to check it before creating payment invoice.
 		$refund_type = $this->getOrderRefundType( $customer, $order );
 
-		$this->create_payment_invoice( $customer, $order, $refund_type );
-		$this->create_refund_invoice( $customer, $order, $refund_type );
+		$this->createPaymentInvoice( $customer, $order, $refund_type );
+		$this->createRefundInvoice( $customer, $order, $refund_type );
 
-		$this->add_cli_log( $order->get_id(), 'order' );
+		$this->addCliLog( $order->get_id(), 'order' );
 	}
 
 	/**
 	 * Export subscription to ChartMogul.
-	 *
 	 */
 	private function exportSubscriptionToChartMogul( WC_Subscription $subscription ): void {
+
+		Logger::log()->debug( sprintf( 'exportSubscriptionToChartMogul called, subscription id: %d', $subscription->get_id() ) );
 
 		$orders = $subscription->get_related_orders();
 		$order  = current( $orders );
@@ -716,7 +791,7 @@ class Component {
 			return;
 		}
 
-		$customer = $this->createCustomer( $order );
+		$customer = $this->createCustomer( $order->get_customer_id() );
 
 		if ( 'cancelled' === $subscription->get_status() ) {
 
@@ -747,9 +822,12 @@ class Component {
 
 	/**
 	 * Export subscription's related orders to ChartMogul.
-	 *
 	 */
-	private function exportSubscriptionRelatedOrdersToChartMogul( array $orders, CMCustomer $customer, WC_Subscription $subscription ): void {
+	private function exportSubscriptionRelatedOrdersToChartMogul(
+		array $orders,
+		CMCustomer $customer,
+		WC_Subscription $subscription
+	): void {
 
 		Logger::log()->info( 'exportSubscriptionRelatedOrdersToChartMogul called.' );
 
@@ -757,7 +835,20 @@ class Component {
 			$order = wc_get_order( $order_id );
 
 			if ( ! $order ) {
-				Logger::log()->info( 'Order not found.', [ 'order_id' => $order_id ] );
+				Logger::log()->warning( 'Order not found.', [ 'order_id' => $order_id ] );
+
+				continue;
+			}
+
+			if ( ! in_array( $order->get_status(), [ 'completed', 'failed', 'refunded' ], true ) ) {
+
+				Logger::log()->warning(
+					'exportSubscriptionRelatedOrdersToChartMogul is called, order creation bailed.',
+					[
+						'current_status'   => $order->get_status(),
+						'allowed_statuses' => [ 'completed', 'failed', 'refunded' ],
+					]
+				);
 
 				continue;
 			}
@@ -765,18 +856,17 @@ class Component {
 			// make sure to check it before creating payment invoice.
 			$refund_type = $this->getOrderRefundType( $customer, $order );
 
-			$this->create_payment_invoice( $customer, $order, $refund_type );
-			$this->create_refund_invoice( $customer, $order, $refund_type );
+			$this->createPaymentInvoice( $customer, $order, $refund_type );
+			$this->createRefundInvoice( $customer, $order, $refund_type );
 		}
 
-		$this->add_cli_log( $subscription->get_id() );
+		$this->addCliLog( $subscription->get_id() );
 	}
 
 	/**
 	 * Function to add CLI log.
-	 *
 	 */
-	private function add_cli_log( int $id, string $log_type = 'subscription' ): void {
+	private function addCliLog( int $id, string $log_type = 'subscription' ): void {
 
 		$log_name = 'Subscription';
 		if ( 'order' === $log_type ) {
@@ -804,8 +894,10 @@ class Component {
 
 	/**
 	 * Helper to convert payment amount to cents, including taxes.
+	 *
+	 * @return array<string,mixed>
 	 */
-	private function get_payment_amount( $order_item_total_tax, $order_item_total ): array {
+	private function getPaymentAmount( int $order_item_total_tax, int $order_item_total ): array {
 		return [
 			'tax_amount_in_cents' => (int) $order_item_total_tax * 100,
 			'amount_in_cents'     => (int) $order_item_total * 100 + (int) $order_item_total_tax * 100,
@@ -814,8 +906,10 @@ class Component {
 
 	/**
 	 * Helper to convert refund amount to cents, including taxes.
+	 *
+	 * @return array<string,mixed>
 	 */
-	private function get_refund_amount( $order_item_total_tax, $order_item_total ): array {
+	private function getRefundAmount( int $order_item_total_tax, int $order_item_total ): array {
 		return [
 			'tax_amount_in_cents' => (int) $order_item_total_tax * 100,
 			'amount_in_cents'     => (int) $order_item_total * 100 + (int) $order_item_total_tax * 100,
@@ -824,7 +918,6 @@ class Component {
 
 	/**
 	 * Helper function to determine the refund type, based on which refund data will be sent to ChartMogul.
-	 *
 	 */
 	private function getOrderRefundType( CMCustomer $customer, WC_Order $order ): string {
 

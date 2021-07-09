@@ -83,4 +83,92 @@ class Subscriptions {
 		] );
 	}
 
+	/**
+	 * Get customer subscription which started with trial by customer ID.
+	 *
+	 * @since 2021.06.29
+	 */
+	public static function getTrialSubscriptionByCustomerID( int $customer_id ): ?WC_Subscription {
+		$subscriptions = wcs_get_users_subscriptions( $customer_id );
+
+		// Include only subscriptions, which started as trial.
+		$trial_subscriptions = array_filter( $subscriptions, [ self::class, 'hasTrial' ] );
+
+		if ( 0 === count( $trial_subscriptions ) ) {
+			return null;
+		}
+
+		// Subscriptions are ordered by start date descending.
+		end( $trial_subscriptions );
+
+		return current( $trial_subscriptions );
+	}
+
+	/**
+	 * Get customer subscription which started with trial by customer ID.
+	 *
+	 * @since 2021.06.29
+	 */
+	public static function getTrialSubscriptionByCustomerID2( int $customer_id ): ?WC_Subscription {
+
+		$trial_subscriptions = self::getCustomerTrialSubscriptions( $customer_id, [ 'active', 'on-hold' ] );
+
+		// Remove trial subscriptions which were renewed early. We don't consider them as trial anymore.
+		$trial_subscriptions = array_filter( $trial_subscriptions, [ self::class, 'subscriptionHasNoRenewal' ] );
+
+		if ( 0 === count( $trial_subscriptions ) ) {
+			return null;
+		}
+
+		// Subscriptions are ordered by start date descending.
+		end( $trial_subscriptions );
+
+		return current( $trial_subscriptions );
+	}
+
+	/**
+	 * Gets trial subscriptions for given customer.
+	 *
+	 * @since 2021.06.29
+	 * @param string|array $status
+	 * @return array<\WC_Subscription>
+	 */
+	public static function getCustomerTrialSubscriptions( int $customer_id, $status = 'any' ): array {
+
+		$subscription_query_args = [
+			'customer_id'            => $customer_id,
+			'subscription_status'    => $status,
+			'subscriptions_per_page' => -1,
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			'meta_query'             => [
+				[
+					'key'     => '_schedule_trial_end',
+					'compare' => '!=',
+					'value'   => 0,
+				],
+			],
+		];
+
+		return wcs_get_subscriptions( $subscription_query_args );
+	}
+
+	/**
+	 * Checks if subscription has paid renewal order.
+	 *
+	 * @since 2021.06.29
+	 */
+	private function subscriptionHasNoRenewal( WC_Subscription $subscription ): bool {
+		global $wpdb;
+
+		$query = sprintf( "SELECT COUNT(*) FROM {$wpdb->postmeta} pm
+            JOIN {$wpdb->posts} p ON (pm.post_id=p.ID AND p.post_status IN (%s))
+            WHERE meta_key IN ('_subscription_renewal', '_subscription_switch')
+            AND meta_value=%d;",
+			implode( ',', array_map( static fn( string $item ) => sprintf( "'wc-%s'", $item ), wc_get_is_paid_statuses() ) ),
+			$subscription->get_id()
+		);
+
+		return 0 === (int) $wpdb->get_var( $query ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
 }

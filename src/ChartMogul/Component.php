@@ -120,7 +120,9 @@ class Component {
 
 		$cm_subscription = $chartmogul_subscriptions->matching( new Criteria( null, [ 'subscription_set_external_id' => $subscription->get_id() ] ) );
 
-		return $cm_subscription->isEmpty() ? null : $cm_subscription->first();
+		return $cm_subscription->isEmpty()
+			? null
+			: $cm_subscription->first();
 	}
 
 	/**
