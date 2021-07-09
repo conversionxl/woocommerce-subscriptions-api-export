@@ -4,4 +4,7 @@
 *.orig
 *.patch
 *.sw*
-vendor/
+/vendor
+/.idea
+/node_modules
+/docs

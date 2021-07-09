@@ -1,0 +1,2 @@
+public/js/**/*.js
+webpack.mix.export.js
