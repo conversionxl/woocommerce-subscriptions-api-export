@@ -11,6 +11,7 @@
 
 namespace CXL\WC\ChartMogul;
 
+use CXL\WC\ChartMogul\AutomateWoo\Component as AWComponent;
 use CXL\WC\ChartMogul\CLI\Component as CLIComponent;
 use CXL\WC\ChartMogul\Query\Component as QueryComponent;
 use CXL\WC\ChartMogul\Tools\ServiceProvider;
@@ -36,6 +37,7 @@ class Provider extends ServiceProvider {
 		}
 
 		$this->cxl_wc_chartmogul->singleton( QueryComponent::class );
+		$this->cxl_wc_chartmogul->singleton( AWComponent::class );
 	}
 
 	/**
@@ -46,6 +48,7 @@ class Provider extends ServiceProvider {
 	public function boot() {
 
 		$this->cxl_wc_chartmogul->resolve( QueryComponent::class )->boot();
+		$this->cxl_wc_chartmogul->resolve( AWComponent::class )->boot();
 	}
 
 }
