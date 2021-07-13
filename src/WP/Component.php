@@ -18,7 +18,7 @@ class Component {
 	 * Gets the object of the user the profile field belongs to.
 	 *
 	 * @since 1.19.0
-	 * @param string|int $user_id User ID
+	 * @param string|int $user_id User ID.
 	 */
 	public static function getUser( $user_id ): ?WP_User {
 

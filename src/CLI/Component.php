@@ -26,6 +26,12 @@ class Component {
 	 * [--order-id]
 	 * : Order ID.
 	 *
+	 * [--customer-id]
+	 * : Customer ID.
+	 *
+	 * [--product-id]
+	 * : Product ID.
+	 *
 	 * [--all-subscriptions]
 	 * : To run script for all subscriptions.
 	 *
@@ -51,6 +57,14 @@ class Component {
 	 *     $ wp cxl shop-export-to-chartmogul --order-id=25 --data-source=xxxxxx
 	 *     Subscription ### sent to ChartMogul.
 	 *
+	 *     # Export customer to ChartMogul.
+	 *     $ wp cxl shop-export-to-chartmogul --customer-id=25 --data-source=xxxxxx
+	 *     Customer ### sent to ChartMogul.
+	 *
+	 *     # Export product as plan to ChartMogul.
+	 *     $ wp cxl shop-export-to-chartmogul --product-id=25 --data-source=xxxxxx
+	 *     Product ### sent to ChartMogul.
+	 *
 	 *     # Export all subscriptions to ChartMogul.
 	 *     $ wp cxl shop-export-to-chartmogul --all-subscriptions --data-source=xxxxxx
 	 *     Subscription #25 sent to ChartMogul.
@@ -65,8 +79,8 @@ class Component {
 	 *
 	 * @todo  Separate command for create data source.
 	 * @todo  Separate command for create plan.
-	 * @param array $args
-	 * @param array $assoc_args
+	 * @param array<string> $args
+	 * @param array<string> $assoc_args
 	 * @subcommand shop-export-to-chartmogul
 	 */
 	public function shopExportToChartMogul( array $args, array $assoc_args ): void {
@@ -74,7 +88,8 @@ class Component {
 			CMComponent::init();
 
 			if ( 'pong!' !== CMComponent::ping() ) {
-				Logger::log()->error( 'No ping to ChartMogul!' );
+				Logger::log()->critical( 'No ping to ChartMogul!' );
+				return;
 			}
 
 			new ExportComponent( $this->parseCommandArgs( $args, $assoc_args ) );
@@ -86,8 +101,9 @@ class Component {
 	/**
 	 * Function to set command arguments.
 	 *
-	 * @param array $args       List of arguments pass with CLI command.
-	 * @param array $assoc_args List of associative arguments pass with CLI command.
+	 * @param array<string> $args       List of arguments pass with CLI command.
+	 * @param array<string> $assoc_args List of associative arguments pass with CLI command.
+	 * @return array<string>
 	 */
 	private function parseCommandArgs( array $args, array $assoc_args ): array {
 		$options = [];
@@ -135,6 +151,16 @@ class Component {
 		// Check order id.
 		if ( ! empty( $assoc_args['order-id'] ) ) {
 			$options['order_id'] = absint( $assoc_args['order-id'] );
+		}
+
+		// Check customer id.
+		if ( ! empty( $assoc_args['customer-id'] ) ) {
+			$options['customer_id'] = absint( $assoc_args['customer-id'] );
+		}
+
+		// Check product id.
+		if ( ! empty( $assoc_args['product-id'] ) ) {
+			$options['product_id'] = absint( $assoc_args['product-id'] );
 		}
 
 		return $options;

@@ -28,7 +28,7 @@ class Memberships {
 			return false;
 		}
 
-		return wc_memberships_get_user_memberships( $user->ID, [ 'status' => [ 'active' ] ] );
+		return wc_memberships_get_user_memberships( $user->ID, [ 'status' => [ 'active', 'free_trial' ] ] );
 	}
 
 	/**

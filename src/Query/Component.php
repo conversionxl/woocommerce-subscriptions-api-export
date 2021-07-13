@@ -33,7 +33,7 @@ class Component implements Bootable {
 	public function addQueryArgs( array $args ): array {
 
 		foreach (
-			[ 'shop-export-to-chartmogul', 'subscription-id', 'order-id', 'all-subscriptions', 'all-orders', 'date-time-modifier', 'data-source', 'create-data-source' ]
+			[ 'shop-export-to-chartmogul', 'subscription-id', 'order-id', 'customer-id', 'product-id', 'all-subscriptions', 'all-orders', 'date-time-modifier', 'data-source', 'create-data-source' ]
 			as $arg
 		) {
 			$args[] = $arg;
@@ -50,6 +50,12 @@ class Component implements Bootable {
 	 *
 	 * order-id=oid
 	 * Order ID.
+	 *
+	 * customer-id=cid
+	 * Customer ID.
+	 *
+	 * [--product-id]
+	 * : Product ID.
 	 *
 	 * all-subscriptions=true
 	 * To run script for all subscriptions.
@@ -72,9 +78,17 @@ class Component implements Bootable {
 	 *     URL: url?shop-export-to-chartmogul=true&subscription-id=25&data-source=xxxxxx
 	 *     Subscription #25 sent to ChartMogul.
 	 *
-	 *     # Export single subscription to ChartMogul.
+	 *     # Export single order to ChartMogul.
 	 *     URL: url?shop-export-to-chartmogul=true&order-id=25&data-source=xxxxxx
-	 *     Subscription ### sent to ChartMogul.
+	 *     Order ### sent to ChartMogul.
+	 *
+	 *     # Export customer to ChartMogul.
+	 *     URL: url?shop-export-to-chartmogul=true&customer-id=25&data-source=xxxxxx
+	 *     Customer ### sent to ChartMogul.
+	 *
+	 *     # Export product as plan to ChartMogul.
+	 *     URL: url?shop-export-to-chartmogul=true&product-id=25&data-source=xxxxxx
+	 *     Product ### sent to ChartMogul.
 	 *
 	 *     # Export all subscriptions to ChartMogul.
 	 *     URL: url?shop-export-to-chartmogul=true&all-subscriptions=true&data-source=xxxxxx
@@ -90,8 +104,8 @@ class Component implements Bootable {
 	 */
 	public function shopExportToChartMogul(): void {
 
+		// Bail early, if related query params are not found.
 		if ( ! get_query_var( 'shop-export-to-chartmogul', false ) ) {
-			Logger::log()->debug( 'Bailing!. No export query string found.' );
 			return;
 		}
 
@@ -101,7 +115,8 @@ class Component implements Bootable {
 			CMComponent::init();
 
 			if ( 'pong!' !== CMComponent::ping() ) {
-				Logger::log()->error( 'No ping to Chartmogul!' );
+				Logger::log()->critical( 'No ping to Chartmogul!' );
+				return;
 			}
 
 			new ExportComponent( $this->parseQueryArgs() );
@@ -163,6 +178,16 @@ class Component implements Bootable {
 		// Check order id.
 		if ( $order_id = get_query_var( 'order-id', null ) ) {
 			$options['order_id'] = absint( $order_id );
+		}
+
+		// Check customer id.
+		if ( $customer_id = get_query_var( 'customer-id', null ) ) {
+			$options['customer_id'] = absint( $customer_id );
+		}
+
+		// Check product id.
+		if ( $product_id = get_query_var( 'product-id', null ) ) {
+			$options['product_id'] = absint( $product_id );
 		}
 
 		return $options;
